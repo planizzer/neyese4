@@ -1,24 +1,17 @@
 // lib/core/api/dio_client.dart
 
 import 'package:dio/dio.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:neyese4/core/config/api_keys.dart'; // Yeni import
 
 class DioClient {
-  // 1. _dio değişkenini "late final" olarak işaretliyoruz.
-  // Bu, Dart'a "bu değişkeni daha sonra, ama kesinlikle kullanmadan önce başlatacağım" demektir.
   late final Dio _dio;
-
-  // Dışarıdan Dio istemcisine erişmek için getter (değişiklik yok).
   Dio get dio => _dio;
 
-  // 2. Sınıf için bir kurucu metot (constructor) ekliyoruz.
   DioClient() {
-    // API anahtarını .env dosyasından alıyoruz.
-    final apiKey = dotenv.env['SPOONACULAR_API_KEY'];
+    const apiKey = ApiKeys.spoonacular; // Yeni kullanım şekli
 
-    // Anahtarın .env dosyasında bulunduğundan emin olalım.
-    if (apiKey == null) {
-      throw Exception("SPOONACULAR_API_KEY .env dosyasında bulunamadıysa!");
+    if (apiKey.isEmpty) {
+      throw Exception("SPOONACULAR_API_KEY derleme anında sağlanmadı!");
     }
 
     // 3. _dio nesnesini burada, constructor içinde oluşturuyoruz.

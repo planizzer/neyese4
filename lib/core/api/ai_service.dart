@@ -4,13 +4,10 @@ import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:neyese4/data/models/enriched_recipe_content.dart';
 import 'package:neyese4/data/models/recipe_detail.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:neyese4/core/config/api_keys.dart'; // Yeni import
 
 class AiService {
-  // 1. Değişkenleri "static final" olarak değiştiriyoruz.
-  // Bu, onların sadece bir kez oluşturulmasını ve sınıfa ait olmasını sağlar.
-  static final String _apiKey = dotenv.env['GEMINI_API_KEY']!;
-
+  static const String _apiKey = ApiKeys.gemini; // Yeni kullanım şekli
   static final _model = GenerativeModel(
     model: 'gemini-1.5-flash',
     apiKey: _apiKey, // Artık _apiKey'e erişim güvenli.
