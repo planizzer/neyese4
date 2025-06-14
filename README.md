@@ -1,7 +1,6 @@
 # neyese4
 
-A new Flutter project.
-
+Bu Bir Planizzer Projesidir. 04081987:Neyese
 ## Getting Started
 
 This project is a starting point for a Flutter application.
