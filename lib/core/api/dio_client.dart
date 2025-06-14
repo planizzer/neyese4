@@ -18,7 +18,7 @@ class DioClient {
 
     // Anahtarın .env dosyasında bulunduğundan emin olalım.
     if (apiKey == null) {
-      throw Exception("SPOONACULAR_API_KEY .env dosyasında bulunamadı!");
+      throw Exception("SPOONACULAR_API_KEY .env dosyasında bulunamadıysa!");
     }
 
     // 3. _dio nesnesini burada, constructor içinde oluşturuyoruz.
