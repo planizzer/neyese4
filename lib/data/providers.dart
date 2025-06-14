@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:neyese4/core/api/dio_client.dart';
+import 'package:neyese4/core/api/ai_service.dart';
 import 'package:neyese4/data/models/saved_recipe.dart';
 import 'package:neyese4/data/repositories/recipe_repository.dart';
 import 'package:neyese4/data/repositories/saved_recipe_repository.dart';
@@ -16,6 +17,10 @@ final recipeRepositoryProvider = Provider<RecipeRepository>((ref) {
   return SpoonacularRecipeRepository(dio: dio);
 });
 
+// YENİ EKLENDİ: AI Servisi için Provider
+final aiServiceProvider = Provider<AiService>((ref) {
+  return AiService();
+});
 
 // --- YEREL VERİTABANI (HIVE) PROVIDER'LARI (YENİ EKLENDİ) ---
 

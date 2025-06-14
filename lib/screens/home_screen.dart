@@ -1,13 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:neyese4/core/theme/app_colors.dart';
 import 'package:neyese4/core/theme/app_text_styles.dart';
 import 'package:neyese4/data/models/recipe_suggestion.dart';
+import 'package:neyese4/features/profile/application/profile_providers.dart';
 import 'package:neyese4/features/recipe_finder/application/recipe_providers.dart';
+import 'package:neyese4/features/recipe_finder/application/search_query.dart';
 import 'package:neyese4/features/recipe_finder/presentation/screens/recipe_detail_screen.dart';
-import 'package:neyese4/features/recipe_finder/presentation/screens/recipe_results_screen.dart'; // Yeni sayfamızı import ediyoruz
+import 'package:neyese4/features/recipe_finder/presentation/screens/recipe_results_screen.dart';
 
-// Metin kutularının durumunu yönetmek için StatefulWidget'a geçiyoruz.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -16,15 +18,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  // Her metin kutusu için bir TextEditingController oluşturuyoruz.
-  // Bu, kutuların içindeki metni okumamızı sağlar.
   final _ingredient1Controller = TextEditingController();
   final _ingredient2Controller = TextEditingController();
   final _ingredient3Controller = TextEditingController();
   final _ingredient4Controller = TextEditingController();
 
-  // Widget ağacından kaldırıldığında controller'ları temizliyoruz.
-  // Bu, hafıza sızıntılarını önler.
   @override
   void dispose() {
     _ingredient1Controller.dispose();
@@ -34,10 +32,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
+  void _findRecipes() {
+    final ingredients = [
+      _ingredient1Controller.text,
+      _ingredient2Controller.text,
+      _ingredient3Controller.text,
+      _ingredient4Controller.text,
+    ]
+        .where((text) => text.trim().isNotEmpty)
+        .map((text) => text.trim())
+        .toList();
+
+    if (ingredients.isNotEmpty) {
+      final userPrefs = ref.read(userPreferencesProvider);
+      final searchQuery = SearchQuery(
+        ingredients: ingredients,
+        diet: userPrefs.diet,
+        intolerances: userPrefs.intolerances,
+      );
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (context) => RecipeResultsScreen(searchQuery: searchQuery),
+      ));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lütfen en az bir malzeme girin.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final randomRecipesAsyncValue = ref.watch(randomRecipesProvider);
-
     return Scaffold(
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 60.0),
@@ -51,9 +76,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   const Text('Mutfağında ne var?', style: AppTextStyles.h1),
                   const SizedBox(height: 8),
-                  const Text('Malzemelerini gir, sana ne yapabileceğini söyleyelim.', style: AppTextStyles.body),
+                  const Text(
+                    'Malzemelerini gir, sana ne yapabileceğini söyleyelim.',
+                    style: AppTextStyles.body,
+                  ),
                   const SizedBox(height: 32),
-                  // Metin kutularını controller'lar ile bağlıyoruz.
                   _buildIngredientTextField(controller: _ingredient1Controller, hintText: '1. Malzeme (örn: Tavuk)'),
                   const SizedBox(height: 16),
                   _buildIngredientTextField(controller: _ingredient2Controller, hintText: '2. Malzeme (örn: Domates)'),
@@ -65,34 +92,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      // BUTONA TIKLAMA MANTIĞI EKLENDİ
-                      onPressed: () {
-                        // Controller'lardaki metinleri bir listeye topluyoruz.
-                        final ingredients = [
-                          _ingredient1Controller.text,
-                          _ingredient2Controller.text,
-                          _ingredient3Controller.text,
-                          _ingredient4Controller.text,
-                        ]
-                        // Sadece dolu olanları alıyoruz ve baş/sondaki boşlukları siliyoruz.
-                            .where((text) => text.trim().isNotEmpty)
-                            .map((text) => text.trim())
-                            .toList();
-
-                        // Eğer en az bir malzeme girildiyse, sonuçlar sayfasına yönlendir.
-                        if (ingredients.isNotEmpty) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => RecipeResultsScreen(ingredients: ingredients),
-                            ),
-                          );
-                        } else {
-                          // Eğer hiç malzeme girilmediyse kullanıcıya bir uyarı göster.
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Lütfen en az bir malzeme girin.')),
-                          );
-                        }
-                      },
+                      onPressed: _findRecipes,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryAction,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -113,18 +113,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             SizedBox(
               height: 220,
               child: randomRecipesAsyncValue.when(
-                data: (recipes) {
-                  return ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: recipes.length,
-                    padding: const EdgeInsets.only(left: 24.0, right: 8.0),
-                    itemBuilder: (context, index) {
-                      return _buildSuggestionCard(context: context, recipe: recipes[index]);
-                    },
-                  );
-                },
+                data: (recipes) => ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: recipes.length,
+                  padding: const EdgeInsets.only(left: 24.0, right: 8.0),
+                  itemBuilder: (context, index) => _buildSuggestionCard(context: context, recipe: recipes[index]),
+                ),
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, stack) => Center(child: Text('Hata: $err')),
+                error: (err, stack) => const Center(child: Text('Öneriler yüklenemedi.')),
               ),
             ),
           ],
@@ -133,10 +129,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // Widget artık bir controller alıyor.
   Widget _buildIngredientTextField({required TextEditingController controller, required String hintText}) {
     return TextField(
-      controller: controller, // Controller'ı TextField'a atıyoruz.
+      controller: controller,
       style: AppTextStyles.input,
       decoration: InputDecoration(
         hintText: hintText,
@@ -152,14 +147,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildSuggestionCard({required BuildContext context, required RecipeSuggestion recipe}) {
+    // DÜZELTME: Güvenilir proxy ve doğru URL kodlaması kullanılıyor.
+    final imageUrl = kIsWeb ? 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(recipe.image)}' : recipe.image;
+
     return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => RecipeDetailScreen(recipeId: recipe.id),
-          ),
-        );
-      },
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => RecipeDetailScreen(recipeId: recipe.id))),
       child: Padding(
         padding: const EdgeInsets.only(right: 16.0),
         child: SizedBox(
@@ -170,12 +162,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(12.0),
                 child: Image.network(
-                  recipe.image,
+                  imageUrl, // Düzeltilmiş URL'yi kullanıyoruz.
                   height: 120,
                   width: 150,
                   fit: BoxFit.cover,
                   loadingBuilder: (context, child, progress) => progress == null ? child : const Center(child: CircularProgressIndicator()),
-                  errorBuilder: (context, error, stackTrace) => Container(height: 120, width: 150, color: Colors.grey[200], child: const Icon(Icons.broken_image, color: Colors.grey)),
+                  errorBuilder: (context, error, stackTrace) => Container(height: 120, width: 150, color: Colors.grey[200], child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey)),
                 ),
               ),
               const SizedBox(height: 8),
