@@ -1,0 +1,1176 @@
+diff --git a/lib/core/api/ai_service.dart b/lib/core/api/ai_service.dart
+index e2395ee..6d4f901 100644
+--- a/lib/core/api/ai_service.dart
++++ b/lib/core/api/ai_service.dart
+@@ -21,13 +21,19 @@ class AiService {
+   Future<EnrichedRecipeContent> getEnrichedRecipeContent(RecipeDetail recipe) async {
+     final prompt =
+         'You are a helpful and creative Turkish chef assistant. '
+-        'Take the following recipe and return a JSON object with four keys: "title_tr", "ingredients_tr", "instructions_tr", and "tips_tr".\n'
+-        '- "title_tr": Translate the recipe title to Turkish.\n'
+-        '- "ingredients_tr": Translate the list of ingredients to Turkish. Return it as a JSON array of strings.\n'
+-        '- "instructions_tr": Rewrite the recipe instructions in Turkish for a home cook. Format it as a single string with numbered steps (e.g., "1. Adım: ...\\n2. Adım: ...").\n'
+-        '- "tips_tr": Provide 2-3 useful and creative tips related to this recipe as a single string, with each tip starting with a "•" character and separated by a newline.\n\n'
+-        'Here is the recipe information:\n'
++        'Take the following recipe information and return a JSON object with the keys: "turkish_title", "difficulty", "readyInMinutes", "tags", "estimated_nutrition", "required_utensils", "ingredients_tr", "preparation_steps", and "chef_tips".\n'
++        '- "turkish_title": (string) Translate the recipe title to Turkish.\n'
++        '- "difficulty": (string) Estimate the difficulty as "Kolay", "Orta", or "Zor".\n'
++        '- "readyInMinutes": (integer) Use the provided preparation time.\n'
++        '- "tags": (array of strings) Provide 3-4 relevant Turkish tags (e.g., "akşam yemeği", "tavuklu", "fırında").\n'
++        '- "estimated_nutrition": (object) Provide estimated values for "Kalori", "Protein", "Yağ", "Karbonhidrat".\n'
++        '- "required_utensils": (array of strings) List the necessary kitchen utensils in Turkish.\n'
++        '- "ingredients_tr": (array of objects) Translate the ingredients to Turkish. Each object must have "amount" (double), "unit" (string), and "name" (string).\n'
++        '- "preparation_steps": (array of objects) Rewrite instructions in Turkish. Each object must have "step_number" (integer) and "description" (string).\n'
++        '- "chef_tips": (array of strings) Provide 2-3 useful and creative tips in Turkish.\n\n'
++        'Here is the recipe information to use:\n'
+         'Title: ${recipe.title}\n'
++        'Ready in Minutes: ${recipe.readyInMinutes}\n'
+         'Ingredients List: ${recipe.extendedIngredients.map((e) => e.original).toList()}\n'
+         'Instructions: ${recipe.instructions}';
+ 
+diff --git a/lib/core/api/dio_client.dart b/lib/core/api/dio_client.dart
+index 67fe63b..94bae65 100644
+--- a/lib/core/api/dio_client.dart
++++ b/lib/core/api/dio_client.dart
+@@ -18,7 +18,7 @@ class DioClient {
+ 
+     // Anahtarın .env dosyasında bulunduğundan emin olalım.
+     if (apiKey == null) {
+-      throw Exception("SPOONACULAR_API_KEY .env dosyasında bulunamadı!");
++      throw Exception("SPOONACULAR_API_KEY .env dosyasında bulunamadıysa!");
+     }
+ 
+     // 3. _dio nesnesini burada, constructor içinde oluşturuyoruz.
+diff --git a/lib/data/models/enriched_recipe_content.dart b/lib/data/models/enriched_recipe_content.dart
+index 9aadad1..8935d38 100644
+--- a/lib/data/models/enriched_recipe_content.dart
++++ b/lib/data/models/enriched_recipe_content.dart
+@@ -1,29 +1,52 @@
+-// Bu basit sınıf, Gemini'den gelen yapılandırılmış veriyi tutar.
++// lib/data/models/enriched_recipe_content.dart
++
++import 'package:neyese4/data/models/ingredient_info.dart';
++import 'package:neyese4/data/models/preparation_step.dart';
++
+ class EnrichedRecipeContent {
++  final String imageUrl; // YENİ EKLENDİ
+   final String title;
+-  final List<String> ingredients;
+-  final String instructions;
+-  final String tips; // Püf noktaları için ayrı bir alan
++  final String difficulty;
++  final List<String> tags;
++  final Map<String, String> estimatedNutrition;
++  final List<String> requiredUtensils;
++  final List<IngredientInfo> ingredients;
++  final List<PreparationStep> preparationSteps;
++  final List<String> chefTips;
++  final int readyInMinutes;
+ 
+   EnrichedRecipeContent({
++    required this.imageUrl, // YENİ EKLENDİ
+     required this.title,
++    required this.difficulty,
++    required this.tags,
++    required this.estimatedNutrition,
++    required this.requiredUtensils,
+     required this.ingredients,
+-    required this.instructions,
+-    required this.tips,
++    required this.preparationSteps,
++    required this.chefTips,
++    required this.readyInMinutes,
+   });
+ 
+-  // Gelen JSON'ı bu nesneye çevirmek için bir fabrika metodu.
++  // Not: fromJson metodunu DEĞİŞTİRMİYORUZ çünkü imageUrl AI'dan gelmeyecek.
+   factory EnrichedRecipeContent.fromJson(Map<String, dynamic> json) {
+-    // Malzeme listesinin doğru şekilde parse edildiğinden emin oluyoruz.
+-    final ingredientsList = (json['ingredients_tr'] as List<dynamic>?)
+-        ?.map((e) => e.toString())
+-        .toList() ?? [];
+-
+     return EnrichedRecipeContent(
+-      title: json['title_tr'] as String? ?? 'Başlık Çevrilemedi',
+-      ingredients: ingredientsList,
+-      instructions: json['instructions_tr'] as String? ?? 'Talimatlar zenginleştirilemedi.',
+-      tips: json['tips_tr'] as String? ?? '', // Püf noktalarını alıyoruz.
++      imageUrl: '', // Burası provider içinde doldurulacağı için boş kalabilir.
++      title: json['turkish_title'] as String? ?? 'Başlık Yok',
++      difficulty: json['difficulty'] as String? ?? 'Belirtilmemiş',
++      readyInMinutes: json['readyInMinutes'] as int? ?? 0,
++      tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
++      estimatedNutrition: (json['estimated_nutrition'] as Map<String, dynamic>?)
++          ?.map((key, value) => MapEntry(key, value.toString())) ?? {},
++      requiredUtensils: (json['required_utensils'] as List<dynamic>?)
++          ?.map((e) => e.toString()).toList() ?? [],
++      ingredients: (json['ingredients_tr'] as List<dynamic>?)
++          ?.map((item) => IngredientInfo.fromJson(item as Map<String, dynamic>))
++          .toList() ?? [],
++      preparationSteps: (json['preparation_steps'] as List<dynamic>?)
++          ?.map((item) => PreparationStep.fromJson(item as Map<String, dynamic>))
++          .toList() ?? [],
++      chefTips: (json['chef_tips'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
+     );
+   }
+-}
++}
+\ No newline at end of file
+diff --git a/lib/data/models/ingredient_info.dart b/lib/data/models/ingredient_info.dart
+index e69de29..af88e3f 100644
+--- a/lib/data/models/ingredient_info.dart
++++ b/lib/data/models/ingredient_info.dart
+@@ -0,0 +1,23 @@
++// lib/data/models/ingredient_info.dart
++
++class IngredientInfo {
++  final double amount;
++  final String unit;
++  final String name;
++
++  IngredientInfo({
++    required this.amount,
++    required this.unit,
++    required this.name,
++  });
++
++  // YENİ EKLENDİ: fromJson metodu
++  factory IngredientInfo.fromJson(Map<String, dynamic> json) {
++    return IngredientInfo(
++      // num olarak gelen veriyi double'a çeviriyoruz.
++      amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
++      unit: json['unit'] as String? ?? '',
++      name: json['name'] as String? ?? 'Bilinmeyen Malzeme',
++    );
++  }
++}
+\ No newline at end of file
+diff --git a/lib/data/models/preparation_step.dart b/lib/data/models/preparation_step.dart
+index e69de29..73fec83 100644
+--- a/lib/data/models/preparation_step.dart
++++ b/lib/data/models/preparation_step.dart
+@@ -0,0 +1,22 @@
++// lib/data/models/preparation_step.dart
++
++class PreparationStep {
++  final int stepNumber;
++  final String description;
++  final String? videoPrompt;
++
++  PreparationStep({
++    required this.stepNumber,
++    required this.description,
++    this.videoPrompt,
++  });
++
++  // YENİ EKLENDİ: fromJson metodu
++  factory PreparationStep.fromJson(Map<String, dynamic> json) {
++    return PreparationStep(
++      stepNumber: json['step_number'] as int? ?? 0,
++      description: json['description'] as String? ?? 'Adım açıklaması yok.',
++      videoPrompt: json['video_prompt'] as String?,
++    );
++  }
++}
+\ No newline at end of file
+diff --git a/lib/features/recipe_finder/application/mock_recipe_data.dart b/lib/features/recipe_finder/application/mock_recipe_data.dart
+index e69de29..2998de9 100644
+--- a/lib/features/recipe_finder/application/mock_recipe_data.dart
++++ b/lib/features/recipe_finder/application/mock_recipe_data.dart
+@@ -0,0 +1,64 @@
++// lib/features/recipe_finder/application/mock_recipe_data.dart
++
++import 'package:neyese4/data/models/enriched_recipe_content.dart';
++import 'package:neyese4/data/models/ingredient_info.dart';
++import 'package:neyese4/data/models/preparation_step.dart';
++
++// Arayüz geliştirirken kullanacağımız sahte, zenginleştirilmiş tarif verisi.
++final mockEnrichedRecipeContent = EnrichedRecipeContent(
++  // YENİ EKLENDİ: Eksik olan zorunlu alan
++  imageUrl: 'https://i.lezzet.com.tr/images-xxlarge-secondary/ev-yapimi-iskender-nasil-yapilir-22248768-4934-4217-a146-8323894814a5.jpg',
++
++  title: "Ev Yapımı İskender Kebap",
++  difficulty: "Orta",
++  readyInMinutes: 45,
++  tags: ["türk mutfağı", "ana yemek", "et", "yoğurtlu"],
++  estimatedNutrition: {
++    "Kalori": "650 kcal",
++    "Protein": "45 g",
++    "Yağ": "35 g",
++    "Karbonhidrat": "40 g",
++  },
++  requiredUtensils: [
++    "Geniş bir tava",
++    "Servis tabağı",
++    "Bıçak",
++    "Sos tavası",
++  ],
++  ingredients: [
++    IngredientInfo(amount: 500, unit: "g", name: "dana bonfile"),
++    IngredientInfo(amount: 2, unit: "adet", name: "tırnak pide"),
++    IngredientInfo(amount: 3, unit: "yemek kaşığı", name: "tereyağı"),
++    IngredientInfo(amount: 1, unit: "yemek kaşığı", name: "domates salçası"),
++    IngredientInfo(amount: 1, unit: "su bardağı", name: "süzme yoğurt"),
++    IngredientInfo(amount: 2, unit: "adet", name: "domates"),
++    IngredientInfo(amount: 4, unit: "adet", name: "sivri biber"),
++  ],
++  preparationSteps: [
++    PreparationStep(
++        stepNumber: 1,
++        description: "Tırnak pideleri küp küp doğrayın ve servis tabağının tabanına yayın. Üzerine hafifçe ısıtılmış süzme yoğurdu gezdirin.",
++        videoPrompt: "Hands dicing turkish pide bread into cubes and spreading them on a white plate. A spoon drizzling yogurt over the bread."
++    ),
++    PreparationStep(
++        stepNumber: 2,
++        description: "Geniş bir tavada etleri yüksek ateşte mühürleyin. Ayrı bir sos tavasında 2 yemek kaşığı tereyağını eritin ve salçayı kavurun. Az su ekleyerek sos kıvamına getirin.",
++        videoPrompt: "Close-up shot of beef strips searing in a hot pan. A separate small pan with butter melting and tomato paste being stirred in."
++    ),
++    PreparationStep(
++        stepNumber: 3,
++        description: "Mühürlenmiş etleri yoğurtlu pidelerin üzerine yerleştirin. Hazırladığınız salçalı sosu etlerin üzerine gezdirin. Yanına közlenmiş domates ve biber ekleyin.",
++        videoPrompt: "Placing the cooked beef over the yogurt and bread. Pouring the red tomato sauce over the beef. Placing grilled tomatoes and peppers on the side."
++    ),
++    PreparationStep(
++        stepNumber: 4,
++        description: "Kalan 1 yemek kaşığı tereyağını kızdırıp tabağın üzerinde gezdirerek cızırtılı bir sesle servis edin. Afiyet olsun!",
++        videoPrompt: "Pouring sizzling hot melted butter from a small pan over the final Iskender dish, creating steam and a sizzling sound."
++    ),
++  ],
++  chefTips: [
++    "En iyi lezzet için mutlaka süzme yoğurt kullanın.",
++    "Tereyağını yakmamaya özen gösterin, sadece kızdırmanız yeterli.",
++    "Etleri çok ince yapraklar halinde kesmek, lezzeti artıracaktır."
++  ],
++);
+\ No newline at end of file
+diff --git a/lib/features/recipe_finder/application/recipe_providers.dart b/lib/features/recipe_finder/application/recipe_providers.dart
+index a210d7d..a840d68 100644
+--- a/lib/features/recipe_finder/application/recipe_providers.dart
++++ b/lib/features/recipe_finder/application/recipe_providers.dart
+@@ -1,31 +1,18 @@
++// lib/features/recipe_finder/application/recipe_providers.dart
++
+ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:neyese4/data/models/enriched_recipe_content.dart';
+-import 'package:neyese4/data/models/recipe_detail.dart';
+ import 'package:neyese4/data/models/recipe_suggestion.dart';
+ import 'package:neyese4/data/models/user_preferences.dart';
+ import 'package:neyese4/data/providers.dart';
+ import 'package:neyese4/features/recipe_finder/application/search_query.dart';
+ 
+-// Günün önerileri için
++// --- ARAMA VE ÖNERİ PROVIDER'LARI (Değişiklik yok) ---
+ final randomRecipesProvider = FutureProvider.autoDispose<List<RecipeSuggestion>>((ref) {
+   final recipeRepository = ref.watch(recipeRepositoryProvider);
+   return recipeRepository.getRandomRecipes();
+ });
+ 
+-// Ham tarif detayını API'den çekmek için
+-final recipeDetailProvider = FutureProvider.autoDispose.family<RecipeDetail, int>((ref, recipeId) {
+-  final recipeRepository = ref.watch(recipeRepositoryProvider);
+-  return recipeRepository.getRecipeDetailById(recipeId);
+-});
+-
+-// Bir tarifin kayıtlı olup olmadığını kontrol etmek için
+-final isRecipeSavedProvider = Provider.autoDispose.family<bool, int>((ref, recipeId) {
+-  ref.watch(savedRecipesStreamProvider);
+-  final repository = ref.watch(savedRecipeRepositoryProvider);
+-  return repository.isRecipeSaved(recipeId);
+-});
+-
+-// Malzemelere ve profil ayarlarına göre arama yapmak için
+ final recipesByIngredientsProvider =
+ FutureProvider.autoDispose.family<List<RecipeSuggestion>, SearchQuery>((ref, query) {
+   if (query.ingredients.isEmpty) {
+@@ -34,13 +21,48 @@ FutureProvider.autoDispose.family<List<RecipeSuggestion>, SearchQuery>((ref, que
+   final recipeRepository = ref.watch(recipeRepositoryProvider);
+   return recipeRepository.findRecipesByIngredients(
+     query.ingredients,
+-    UserPreferences(diet: query.diet, intolerances: query.intolerances, equipment: query.equipment),
++    UserPreferences(diet: query.diet, intolerances: query.intolerances),
+   );
+ });
+ 
+-// DÜZENLENDİ: Bu provider artık ham tarifi alıp AI servisine göndererek zenginleştirilmiş içeriği getirir.
+-final enrichedRecipeProvider =
+-FutureProvider.autoDispose.family<EnrichedRecipeContent, RecipeDetail>((ref, recipe) {
++
++// --- TARİF DETAY SAYFASI İÇİN YENİ PROVIDER'LAR ---
++
++// 1. Temel tarifi Spoonacular'dan çeken provider (dahili kullanım için)
++final _recipeDetailProvider = FutureProvider.autoDispose.family((ref, int recipeId) {
++  final recipeRepository = ref.watch(recipeRepositoryProvider);
++  return recipeRepository.getRecipeDetailById(recipeId);
++});
++
++// 2. Spoonacular'dan tarifi alıp Gemini ile zenginleştiren BİRLEŞİK provider
++// Arayüzümüz sadece bu provider'ı kullanacak.
++final fullRecipeProvider = FutureProvider.autoDispose.family<EnrichedRecipeContent, int>((ref, recipeId) async {
++  // Önce temel tarifi al
++  final baseRecipe = await ref.watch(_recipeDetailProvider(recipeId).future);
++
++  // Sonra bu tarifi AI servisine gönderip zenginleştirilmiş halini al
+   final aiService = ref.watch(aiServiceProvider);
+-  return aiService.getEnrichedRecipeContent(recipe);
++  final enrichedContentFromAI = await aiService.getEnrichedRecipeContent(baseRecipe);
++
++
++  return EnrichedRecipeContent(
++    imageUrl: baseRecipe.image, // Spoonacular'dan gelen orijinal resim URL'si
++    title: enrichedContentFromAI.title,
++    difficulty: enrichedContentFromAI.difficulty,
++    readyInMinutes: enrichedContentFromAI.readyInMinutes,
++    tags: enrichedContentFromAI.tags,
++    estimatedNutrition: enrichedContentFromAI.estimatedNutrition,
++    requiredUtensils: enrichedContentFromAI.requiredUtensils,
++    ingredients: enrichedContentFromAI.ingredients,
++    preparationSteps: enrichedContentFromAI.preparationSteps,
++    chefTips: enrichedContentFromAI.chefTips,
++  );
+ });
++
++
++// 3. Bir tarifin kaydedilip kaydedilmediğini kontrol eden provider (Değişiklik yok)
++final isRecipeSavedProvider = Provider.autoDispose.family<bool, int>((ref, recipeId) {
++  ref.watch(savedRecipesStreamProvider);
++  final repository = ref.watch(savedRecipeRepositoryProvider);
++  return repository.isRecipeSaved(recipeId);
++});
+\ No newline at end of file
+diff --git a/lib/features/recipe_finder/presentation/screens/recipe_detail_screen.dart b/lib/features/recipe_finder/presentation/screens/recipe_detail_screen.dart
+index 806aca1..e3b265e 100644
+--- a/lib/features/recipe_finder/presentation/screens/recipe_detail_screen.dart
++++ b/lib/features/recipe_finder/presentation/screens/recipe_detail_screen.dart
+@@ -1,164 +1,124 @@
+-import 'package:flutter/foundation.dart';
++// lib/features/recipe_finder/presentation/screens/recipe_detail_screen.dart
++
+ import 'package:flutter/material.dart';
+ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:neyese4/core/theme/app_colors.dart';
+ import 'package:neyese4/core/theme/app_text_styles.dart';
+-import 'package:neyese4/data/models/recipe_detail.dart';
+ import 'package:neyese4/data/models/saved_recipe.dart';
+ import 'package:neyese4/data/providers.dart';
+ import 'package:neyese4/features/recipe_finder/application/recipe_providers.dart';
++// Widget'larımızı import ediyoruz
++import 'package:neyese4/features/recipe_finder/presentation/widgets/chef_tips_card.dart';
++import 'package:neyese4/features/recipe_finder/presentation/widgets/ingredients_card.dart';
++import 'package:neyese4/features/recipe_finder/presentation/widgets/nutrition_card.dart';
++import 'package:neyese4/features/recipe_finder/presentation/widgets/preparation_steps_card.dart';
++import 'package:neyese4/features/recipe_finder/presentation/widgets/recipe_title_and_meta_card.dart';
++import 'package:neyese4/features/recipe_finder/presentation/widgets/utensils_card.dart';
++import 'package:flutter/foundation.dart'; // Web kontrolü için bu importu ekleyin
+ 
++// Widget'ımızı tekrar ConsumerWidget'a çeviriyoruz.
+ class RecipeDetailScreen extends ConsumerWidget {
+   final int recipeId;
+   const RecipeDetailScreen({super.key, required this.recipeId});
+ 
+   @override
+   Widget build(BuildContext context, WidgetRef ref) {
+-    final recipeDetailAsyncValue = ref.watch(recipeDetailProvider(recipeId));
++    // Yeni birleşik provider'ımızı dinliyoruz.
++    final recipeAsyncValue = ref.watch(fullRecipeProvider(recipeId));
+ 
+     return Scaffold(
+       backgroundColor: AppColors.background,
+-      body: recipeDetailAsyncValue.when(
++      // Gelen verinin durumuna göre (yükleniyor, hata, başarılı) farklı arayüzler gösteriyoruz.
++      body: recipeAsyncValue.when(
+         loading: () => const Center(child: CircularProgressIndicator()),
+-        error: (err, stack) => Center(child: Text('Tarif yüklenemedi: $err')),
+-        data: (recipe) {
+-          final enrichedContentAsyncValue = ref.watch(enrichedRecipeProvider(recipe));
++        error: (err, stack) => Center(
++          child: Padding(
++            padding: const EdgeInsets.all(20.0),
++            child: Text('Tarif yüklenemedi.\nLütfen internet bağlantınızı kontrol edin.\nHata: $err', textAlign: TextAlign.center),
++          ),
++        ),
++        data: (content) {
++          // Veri başarıyla geldiğinde, daha önce tasarladığımız arayüzü gösteriyoruz.
+           final isSaved = ref.watch(isRecipeSavedProvider(recipeId));
+-          final imageUrl = kIsWeb ? 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(recipe.image)}' : recipe.image;
++          const double cardSpacing = 24.0;
+ 
+           return CustomScrollView(
+             slivers: [
+               SliverAppBar(
+-                surfaceTintColor: Colors.transparent,
+                 expandedHeight: 250.0,
+                 pinned: true,
+-                title: enrichedContentAsyncValue.when(
+-                  data: (content) => Text(content.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+-                  loading: () => Text(recipe.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+-                  error: (_, __) => Text(recipe.title, maxLines: 1, overflow: TextOverflow.ellipsis),
++                flexibleSpace: FlexibleSpaceBar(
++                  title: Text(
++                    content.title,
++                    style: const TextStyle(
++                        fontSize: 16,
++                        shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 1))]),
++                  ),
++                  background: Image.network(
++                    // Web'de CORS hatası almamak için proxy kullanıyoruz.
++                    kIsWeb
++                        ? 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(content.imageUrl)}'
++                        : content.imageUrl,
++                    fit: BoxFit.cover,
++                    errorBuilder: (c, e, s) => const Icon(Icons.error),
++                  ),
+                 ),
+-                centerTitle: false,
+                 actions: [
++                  // Kaydetme butonunu tekrar aktif hale getiriyoruz
+                   IconButton(
+                     icon: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border_outlined, color: isSaved ? AppColors.primaryAction : null),
+-                    onPressed: () async {
+-                      final savedRecipeRepository = ref.read(savedRecipeRepositoryProvider);
++                    onPressed: () {
++                      final repository = ref.read(savedRecipeRepositoryProvider);
+                       if (isSaved) {
+-                        await savedRecipeRepository.deleteRecipe(recipeId);
++                        repository.deleteRecipe(recipeId);
+                       } else {
+-                        await savedRecipeRepository.saveRecipe(SavedRecipe(id: recipe.id, title: recipe.title, image: recipe.image));
+-                      }
++                        // Not: image URL'i şu an mock datadan değil, AI cevabından gelmiyor.
++                        // Şimdilik sabit bir URL kullanabiliriz veya Spoonacular'dan gelen orijinali kullanabiliriz.
++                        // Bu özellik daha sonra geliştirilebilir.
++                        repository.saveRecipe(SavedRecipe(id: recipeId, title: content.title, image: content.imageUrl));                      }
+                     },
+                   ),
+                 ],
+-                flexibleSpace: FlexibleSpaceBar(
+-                  background: Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.error)),
+-                ),
+               ),
+-              SliverToBoxAdapter(
+-                child: Padding(
+-                    padding: const EdgeInsets.all(16.0),
+-                    child: enrichedContentAsyncValue.when(
+-                      loading: () => const Center(heightFactor: 5, child: CircularProgressIndicator()),
+-                      error: (err, stack) => Center(child: Text('Tarif içeriği yüklenemedi: $err', style: const TextStyle(color: Colors.red))),
+-                      data: (content) {
+-                        // YENİ VE ŞIK ARAYÜZ
+-                        return Column(
+-                          crossAxisAlignment: CrossAxisAlignment.start,
+-                          children: [
+-                            // Başlık ve Özet Bilgiler
+-                            Text(content.title, style: AppTextStyles.h1),
+-                            const SizedBox(height: 16),
+-                            Row(
+-                              children: [
+-                                _buildInfoChip(Icons.timer_outlined, '${recipe.readyInMinutes} dk'),
+-                                const SizedBox(width: 8),
+-                                _buildInfoChip(Icons.food_bank_outlined, '${content.ingredients.length} malzeme'),
+-                              ],
+-                            ),
+-                            const SizedBox(height: 24),
+-
+-                            // Malzemeler Bölümü
+-                            const Text('Malzemeler', style: AppTextStyles.h2),
+-                            const SizedBox(height: 12),
+-                            Container(
+-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+-                              decoration: BoxDecoration(
+-                                  color: Colors.white,
+-                                  borderRadius: BorderRadius.circular(12),
+-                                  border: Border.all(color: Colors.grey.shade200)),
+-                              child: Column(
+-                                crossAxisAlignment: CrossAxisAlignment.start,
+-                                children: content.ingredients
+-                                    .map((ingredient) => Padding(
+-                                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+-                                  child: Text('• $ingredient', style: AppTextStyles.body),
+-                                ))
+-                                    .toList(),
+-                              ),
+-                            ),
+-                            const SizedBox(height: 24),
+-
+-                            // Hazırlanışı Bölümü
+-                            const Text('Hazırlanışı', style: AppTextStyles.h2),
+-                            const SizedBox(height: 12),
+-                            Text(
+-                              content.instructions,
+-                              style: AppTextStyles.body.copyWith(height: 1.6, fontSize: 17),
+-                            ),
+-
+-                            // Püf Noktaları Bölümü (Eğer varsa)
+-                            if (content.tips.isNotEmpty) ...[
+-                              const SizedBox(height: 24),
+-                              const Text('Püf Noktaları', style: AppTextStyles.h2),
+-                              const SizedBox(height: 12),
+-                              Container(
+-                                padding: const EdgeInsets.all(16),
+-                                decoration: BoxDecoration(
+-                                  color: AppColors.primaryAction.withOpacity(0.05),
+-                                  borderRadius: BorderRadius.circular(12),
+-                                ),
+-                                child: Text(
+-                                    content.tips,
+-                                    style: AppTextStyles.body.copyWith(height: 1.5, fontStyle: FontStyle.italic)
+-                                ),
+-                              )
+-                            ],
+-
+-                            const SizedBox(height: 40),
+-                            SizedBox(
+-                              width: double.infinity,
+-                              child: ElevatedButton.icon(
+-                                icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+-                                onPressed: () {
+-                                  // TODO: İnteraktif Pişirme Modu sayfası açılacak.
+-                                },
+-                                style: ElevatedButton.styleFrom(
+-                                  backgroundColor: AppColors.accent,
+-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+-                                ),
+-                                label: const Text('Tarifi Yapmaya Başla', style: AppTextStyles.button),
+-                              ),
+-                            ),
+-                          ],
+-                        );
+-                      },
+-                    )
++              SliverPadding(
++                padding: const EdgeInsets.all(16.0),
++                sliver: SliverList(
++                  delegate: SliverChildListDelegate(
++                    [
++                      RecipeTitleAndMetaCard(content: content),
++                      const SizedBox(height: cardSpacing),
++                      IngredientsCard(content: content),
++                      const SizedBox(height: cardSpacing),
++                      UtensilsCard(content: content),
++                      const SizedBox(height: cardSpacing),
++                      PreparationStepsCard(content: content),
++                      const SizedBox(height: cardSpacing),
++                      ChefTipsCard(content: content),
++                      const SizedBox(height: cardSpacing),
++                      NutritionCard(content: content),
++                      const SizedBox(height: cardSpacing + 20),
++                    ],
++                  ),
+                 ),
+               ),
+             ],
+           );
+         },
+       ),
++      // Butonun görünürlüğü veri yüklendiğinde sağlanır.
++      bottomNavigationBar: recipeAsyncValue.hasValue ? Padding(
++        padding: const EdgeInsets.all(16.0),
++        child: ElevatedButton.icon(
++          icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
++          onPressed: () {},
++          style: ElevatedButton.styleFrom(
++            backgroundColor: AppColors.accent,
++            padding: const EdgeInsets.symmetric(vertical: 16),
++            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
++          ),
++          label: const Text('Tarifi Yapmaya Başla', style: AppTextStyles.button),
++        ),
++      ) : null,
+     );
+   }
+-
+-  Widget _buildInfoChip(IconData icon, String label) => Chip(
+-    avatar: Icon(icon, color: AppColors.primaryAction, size: 20),
+-    label: Text(label, style: AppTextStyles.body),
+-    backgroundColor: AppColors.primaryAction.withOpacity(0.1),
+-    side: BorderSide.none,
+-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+-  );
+-}
++}
+\ No newline at end of file
+diff --git a/lib/features/recipe_finder/presentation/widgets/chef_tips_card.dart b/lib/features/recipe_finder/presentation/widgets/chef_tips_card.dart
+index e69de29..ad0c6c7 100644
+--- a/lib/features/recipe_finder/presentation/widgets/chef_tips_card.dart
++++ b/lib/features/recipe_finder/presentation/widgets/chef_tips_card.dart
+@@ -0,0 +1,52 @@
++// lib/features/recipe_finder/presentation/widgets/chef_tips_card.dart
++
++import 'package:flutter/material.dart';
++import 'package:neyese4/core/theme/app_colors.dart';
++import 'package:neyese4/core/theme/app_text_styles.dart';
++import 'package:neyese4/data/models/enriched_recipe_content.dart';
++
++class ChefTipsCard extends StatelessWidget {
++  final EnrichedRecipeContent content;
++  const ChefTipsCard({super.key, required this.content});
++
++  @override
++  Widget build(BuildContext context) {
++    if (content.chefTips.isEmpty) {
++      // Eğer püf noktası yoksa, bu kartı hiç gösterme.
++      return const SizedBox.shrink();
++    }
++
++    return Container(
++      width: double.infinity,
++      padding: const EdgeInsets.all(16.0),
++      decoration: BoxDecoration(
++        color: AppColors.primaryAction.withOpacity(0.05), // Farklı bir arka plan
++        borderRadius: BorderRadius.circular(12),
++        border: Border.all(color: AppColors.primaryAction.withOpacity(0.2)),
++      ),
++      child: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          Row(
++            children: [
++              const Icon(Icons.lightbulb_outline, color: AppColors.primaryAction),
++              const SizedBox(width: 8),
++              Text('Püf Noktaları', style: AppTextStyles.h2),
++            ],
++          ),
++          const SizedBox(height: 16),
++          ...content.chefTips.map((tip) {
++            return Padding(
++              padding: const EdgeInsets.only(bottom: 8.0),
++              // İtalik ve hafif bir stil ile
++              child: Text(
++                '• $tip',
++                style: AppTextStyles.body.copyWith(fontStyle: FontStyle.italic),
++              ),
++            );
++          }).toList(),
++        ],
++      ),
++    );
++  }
++}
+\ No newline at end of file
+diff --git a/lib/features/recipe_finder/presentation/widgets/ingredients_card.dart b/lib/features/recipe_finder/presentation/widgets/ingredients_card.dart
+index e69de29..2173e8f 100644
+--- a/lib/features/recipe_finder/presentation/widgets/ingredients_card.dart
++++ b/lib/features/recipe_finder/presentation/widgets/ingredients_card.dart
+@@ -0,0 +1,175 @@
++// lib/features/recipe_finder/presentation/widgets/ingredients_card.dart
++
++import 'package:flutter/material.dart';
++import 'package:intl/intl.dart';
++import 'package:neyese4/core/theme/app_colors.dart';
++import 'package:neyese4/core/theme/app_text_styles.dart';
++import 'package:neyese4/data/models/enriched_recipe_content.dart';
++import 'package:neyese4/data/models/ingredient_info.dart';
++
++class IngredientsCard extends StatefulWidget {
++  final EnrichedRecipeContent content;
++  const IngredientsCard({super.key, required this.content});
++
++  @override
++  State<IngredientsCard> createState() => _IngredientsCardState();
++}
++
++class _IngredientsCardState extends State<IngredientsCard> {
++  late int _servings;
++  final int _originalServings = 2;
++
++  // YENİ: İşaretlenmiş malzemelerin adlarını tutacak bir set.
++  // Set kullanıyoruz çünkü her malzeme sadece bir kez eklenebilir.
++  final Set<String> _checkedIngredients = {};
++
++  @override
++  void initState() {
++    super.initState();
++    _servings = _originalServings;
++  }
++
++  void _incrementServings() {
++    setState(() {
++      _servings++;
++    });
++  }
++
++  void _decrementServings() {
++    if (_servings > 1) {
++      setState(() {
++        _servings--;
++      });
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    return _buildStyledCard(
++      title: 'Malzemeler',
++      headerAccessory: _buildServingCalculator(),
++      child: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: widget.content.ingredients.map((ingredient) {
++          return _buildIngredientRow(ingredient);
++        }).toList(),
++      ),
++    );
++  }
++
++  Widget _buildServingCalculator() {
++    return Row(
++      children: [
++        IconButton(
++          onPressed: _decrementServings,
++          icon: const Icon(Icons.remove_circle_outline),
++          color: AppColors.neutralGrey,
++        ),
++        Text('$_servings Porsiyon', style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
++        IconButton(
++          onPressed: _incrementServings,
++          icon: const Icon(Icons.add_circle_outline),
++          color: AppColors.primaryAction,
++        ),
++      ],
++    );
++  }
++
++  // GÜNCELLENDİ: Bu metot artık interaktif bir Checkbox içeriyor.
++  Widget _buildIngredientRow(IngredientInfo ingredient) {
++    final newAmount = (ingredient.amount / _originalServings) * _servings;
++    final NumberFormat numberFormat = NumberFormat("#.##");
++    final formattedAmount = numberFormat.format(newAmount);
++
++    // Bu malzemenin işaretli olup olmadığını kontrol ediyoruz.
++    final bool isChecked = _checkedIngredients.contains(ingredient.name);
++
++    return Padding(
++      padding: const EdgeInsets.symmetric(vertical: 2.0),
++      child: InkWell( // Tüm satırı tıklanabilir yapmak için
++        onTap: () {
++          setState(() {
++            if (isChecked) {
++              _checkedIngredients.remove(ingredient.name);
++            } else {
++              _checkedIngredients.add(ingredient.name);
++            }
++          });
++        },
++        borderRadius: BorderRadius.circular(8),
++        child: Padding(
++          padding: const EdgeInsets.symmetric(vertical: 6.0),
++          child: Row(
++            children: [
++              // GÜNCELLENDİ: Artık statik bir ikon yerine interaktif bir Checkbox var.
++              Checkbox(
++                value: isChecked,
++                onChanged: (bool? value) {
++                  setState(() {
++                    if (value == true) {
++                      _checkedIngredients.add(ingredient.name);
++                    } else {
++                      _checkedIngredients.remove(ingredient.name);
++                    }
++                  });
++                },
++                activeColor: AppColors.primaryAction,
++              ),
++              const SizedBox(width: 8),
++              SizedBox(
++                width: 80,
++                child: Text(
++                  '$formattedAmount ${ingredient.unit}',
++                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
++                ),
++              ),
++              Expanded(
++                child: Text(
++                  ingredient.name,
++                  // GÜNCELLENDİ: İşaretliyse metnin üzerini çiziyoruz.
++                  style: AppTextStyles.body.copyWith(
++                    decoration: isChecked ? TextDecoration.lineThrough : null,
++                    color: isChecked ? AppColors.neutralGrey : AppColors.primaryText,
++                  ),
++                ),
++              ),
++            ],
++          ),
++        ),
++      ),
++    );
++  }
++
++  Widget _buildStyledCard({required String title, required Widget child, Widget? headerAccessory}) {
++    return Container(
++      width: double.infinity,
++      padding: const EdgeInsets.all(16.0),
++      decoration: BoxDecoration(
++        color: Colors.white,
++        borderRadius: BorderRadius.circular(12),
++        boxShadow: [
++          BoxShadow(
++            color: Colors.grey.withOpacity(0.1),
++            spreadRadius: 1,
++            blurRadius: 5,
++            offset: const Offset(0, 2),
++          ),
++        ],
++      ),
++      child: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          Row(
++            mainAxisAlignment: MainAxisAlignment.spaceBetween,
++            children: [
++              Text(title, style: AppTextStyles.h2),
++              if (headerAccessory != null) headerAccessory,
++            ],
++          ),
++          const Divider(height: 32),
++          child,
++        ],
++      ),
++    );
++  }
++}
+\ No newline at end of file
+diff --git a/lib/features/recipe_finder/presentation/widgets/nutrition_card.dart b/lib/features/recipe_finder/presentation/widgets/nutrition_card.dart
+index e69de29..d5dda9e 100644
+--- a/lib/features/recipe_finder/presentation/widgets/nutrition_card.dart
++++ b/lib/features/recipe_finder/presentation/widgets/nutrition_card.dart
+@@ -0,0 +1,59 @@
++// lib/features/recipe_finder/presentation/widgets/nutrition_card.dart
++
++import 'package:flutter/material.dart';
++import 'package:neyese4/core/theme/app_text_styles.dart';
++import 'package:neyese4/data/models/enriched_recipe_content.dart';
++
++class NutritionCard extends StatelessWidget {
++  final EnrichedRecipeContent content;
++  const NutritionCard({super.key, required this.content});
++
++  @override
++  Widget build(BuildContext context) {
++    return _buildStyledCard(
++      title: 'Tahmini Besin Değerleri',
++      child: Column(
++        children: content.estimatedNutrition.entries.map((entry) {
++          return Padding(
++            padding: const EdgeInsets.symmetric(vertical: 4.0),
++            child: Row(
++              mainAxisAlignment: MainAxisAlignment.spaceBetween,
++              children: [
++                Text(entry.key, style: AppTextStyles.body),
++                Text(entry.value, style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
++              ],
++            ),
++          );
++        }).toList(),
++      ),
++    );
++  }
++
++  // Ortak kart stili için yardımcı metot.
++  Widget _buildStyledCard({required String title, required Widget child}) {
++    return Container(
++      width: double.infinity,
++      padding: const EdgeInsets.all(16.0),
++      decoration: BoxDecoration(
++        color: Colors.white,
++        borderRadius: BorderRadius.circular(12),
++        boxShadow: [
++          BoxShadow(
++            color: Colors.grey.withOpacity(0.1),
++            spreadRadius: 1,
++            blurRadius: 5,
++            offset: const Offset(0, 2),
++          ),
++        ],
++      ),
++      child: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          Text(title, style: AppTextStyles.h2),
++          const SizedBox(height: 16),
++          child,
++        ],
++      ),
++    );
++  }
++}
+\ No newline at end of file
+diff --git a/lib/features/recipe_finder/presentation/widgets/preparation_steps_card.dart b/lib/features/recipe_finder/presentation/widgets/preparation_steps_card.dart
+index e69de29..2eda7e0 100644
+--- a/lib/features/recipe_finder/presentation/widgets/preparation_steps_card.dart
++++ b/lib/features/recipe_finder/presentation/widgets/preparation_steps_card.dart
+@@ -0,0 +1,119 @@
++// lib/features/recipe_finder/presentation/widgets/preparation_steps_card.dart
++
++import 'package:flutter/material.dart';
++import 'package:neyese4/core/theme/app_colors.dart';
++import 'package:neyese4/core/theme/app_text_styles.dart';
++import 'package:neyese4/data/models/enriched_recipe_content.dart';
++import 'package:neyese4/data/models/preparation_step.dart';
++
++class PreparationStepsCard extends StatelessWidget {
++  final EnrichedRecipeContent content;
++  const PreparationStepsCard({super.key, required this.content});
++
++  @override
++  Widget build(BuildContext context) {
++    return _buildStyledCard(
++      title: 'Hazırlanışı',
++      child: Column(
++        children: content.preparationSteps.map((step) {
++          // Her bir adım için _StepItem widget'ını oluşturuyoruz.
++          // Listenin son elemanı değilse, altına bir ayırıcı (divider) ekliyoruz.
++          final isLastItem = step == content.preparationSteps.last;
++          return Column(
++            children: [
++              _StepItem(step: step),
++              if (!isLastItem)
++                const Divider(height: 32, thickness: 0.5)
++            ],
++          );
++        }).toList(),
++      ),
++    );
++  }
++
++  // Diğer kartlarımızla aynı stili kullanmak için yardımcı metot.
++  Widget _buildStyledCard({required String title, required Widget child}) {
++    return Container(
++      width: double.infinity,
++      padding: const EdgeInsets.all(16.0),
++      decoration: BoxDecoration(
++        color: Colors.white,
++        borderRadius: BorderRadius.circular(12),
++        boxShadow: [
++          BoxShadow(
++            color: Colors.grey.withOpacity(0.1),
++            spreadRadius: 1,
++            blurRadius: 5,
++            offset: const Offset(0, 2),
++          ),
++        ],
++      ),
++      child: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          Text(title, style: AppTextStyles.h2),
++          const SizedBox(height: 16),
++          child,
++        ],
++      ),
++    );
++  }
++}
++
++// Tek bir hazırlık adımını gösteren widget.
++class _StepItem extends StatelessWidget {
++  final PreparationStep step;
++  const _StepItem({required this.step});
++
++  @override
++  Widget build(BuildContext context) {
++    return Row(
++      crossAxisAlignment: CrossAxisAlignment.start,
++      children: [
++        // Adım Numarası
++        CircleAvatar(
++          radius: 14,
++          backgroundColor: AppColors.primaryAction,
++          child: Text(
++            '${step.stepNumber}',
++            style: AppTextStyles.body.copyWith(
++              color: Colors.white,
++              fontWeight: FontWeight.bold,
++            ),
++          ),
++        ),
++        const SizedBox(width: 16),
++        // Adım Açıklaması ve Görseli için Alan
++        Expanded(
++          child: Column(
++            crossAxisAlignment: CrossAxisAlignment.start,
++            children: [
++              Text(
++                step.description,
++                style: AppTextStyles.body.copyWith(height: 1.5, fontSize: 17),
++              ),
++              const SizedBox(height: 16),
++              // Gelecekte AI ile görsel üreteceğimiz alanın yer tutucusu.
++              AspectRatio(
++                aspectRatio: 16 / 9,
++                child: Container(
++                  decoration: BoxDecoration(
++                    color: Colors.grey.shade200,
++                    borderRadius: BorderRadius.circular(8),
++                  ),
++                  child: const Center(
++                    child: Icon(
++                      Icons.camera_alt_outlined,
++                      color: AppColors.neutralGrey,
++                      size: 32,
++                    ),
++                  ),
++                ),
++              ),
++            ],
++          ),
++        ),
++      ],
++    );
++  }
++}
+\ No newline at end of file
+diff --git a/lib/features/recipe_finder/presentation/widgets/recipe_title_and_meta_card.dart b/lib/features/recipe_finder/presentation/widgets/recipe_title_and_meta_card.dart
+index e69de29..56c83f7 100644
+--- a/lib/features/recipe_finder/presentation/widgets/recipe_title_and_meta_card.dart
++++ b/lib/features/recipe_finder/presentation/widgets/recipe_title_and_meta_card.dart
+@@ -0,0 +1,44 @@
++import 'package:flutter/material.dart';
++import 'package:neyese4/core/theme/app_colors.dart';
++import 'package:neyese4/core/theme/app_text_styles.dart';
++import 'package:neyese4/data/models/enriched_recipe_content.dart';
++
++class RecipeTitleAndMetaCard extends StatelessWidget {
++  final EnrichedRecipeContent content;
++  const RecipeTitleAndMetaCard({super.key, required this.content});
++
++  @override
++  Widget build(BuildContext context) {
++    return Column(
++      crossAxisAlignment: CrossAxisAlignment.start,
++      children: [
++        Text(content.title, style: AppTextStyles.h1),
++        const SizedBox(height: 16),
++        Row(
++          children: [
++            _buildInfoChip(
++              icon: Icons.timer_outlined,
++              label: '${content.readyInMinutes} dk',
++            ),
++            const SizedBox(width: 12),
++            _buildInfoChip(
++              icon: Icons.leaderboard_outlined,
++              label: content.difficulty,
++            ),
++          ],
++        ),
++      ],
++    );
++  }
++
++  Widget _buildInfoChip({required IconData icon, required String label}) {
++    return Chip(
++      avatar: Icon(icon, color: AppColors.primaryAction, size: 20),
++      label: Text(label),
++      labelStyle: AppTextStyles.body.copyWith(color: AppColors.primaryText),
++      backgroundColor: AppColors.primaryAction.withOpacity(0.1),
++      side: BorderSide.none,
++      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
++    );
++  }
++}
+\ No newline at end of file
+diff --git a/lib/features/recipe_finder/presentation/widgets/utensils_card.dart b/lib/features/recipe_finder/presentation/widgets/utensils_card.dart
+index e69de29..213b1ff 100644
+--- a/lib/features/recipe_finder/presentation/widgets/utensils_card.dart
++++ b/lib/features/recipe_finder/presentation/widgets/utensils_card.dart
+@@ -0,0 +1,52 @@
++import 'package:flutter/material.dart';
++import 'package:neyese4/core/theme/app_text_styles.dart';
++import 'package:neyese4/data/models/enriched_recipe_content.dart';
++
++class UtensilsCard extends StatelessWidget {
++  final EnrichedRecipeContent content;
++  const UtensilsCard({super.key, required this.content});
++
++  @override
++  Widget build(BuildContext context) {
++    return _buildStyledCard(
++      title: 'Mutfak Aletleri',
++      child: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: content.requiredUtensils.map((utensil) {
++          return Padding(
++            padding: const EdgeInsets.only(bottom: 8.0),
++            child: Text('• $utensil', style: AppTextStyles.body),
++          );
++        }).toList(),
++      ),
++    );
++  }
++
++  // Ortak kart stilimizi oluşturmak için bir yardımcı metot
++  Widget _buildStyledCard({required String title, required Widget child}) {
++    return Container(
++      width: double.infinity,
++      padding: const EdgeInsets.all(16.0),
++      decoration: BoxDecoration(
++        color: Colors.white,
++        borderRadius: BorderRadius.circular(12),
++        boxShadow: [
++          BoxShadow(
++            color: Colors.grey.withOpacity(0.1),
++            spreadRadius: 1,
++            blurRadius: 5,
++            offset: const Offset(0, 2),
++          ),
++        ],
++      ),
++      child: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          Text(title, style: AppTextStyles.h2),
++          const SizedBox(height: 16),
++          child,
++        ],
++      ),
++    );
++  }
++}
+\ No newline at end of file
+diff --git a/neyese_updates.patch b/neyese_updates.patch
+index 229a846..e062a5f 100644
+--- a/neyese_updates.patch
++++ b/neyese_updates.patch
+@@ -1,13 +0,0 @@
+-diff --git a/lib/core/api/dio_client.dart b/lib/core/api/dio_client.dart
+-index 67fe63b..94bae65 100644
+---- a/lib/core/api/dio_client.dart
+-+++ b/lib/core/api/dio_client.dart
+-@@ -18,7 +18,7 @@ class DioClient {
+- 
+-     // Anahtarın .env dosyasında bulunduğundan emin olalım.
+-     if (apiKey == null) {
+--      throw Exception("SPOONACULAR_API_KEY .env dosyasında bulunamadı!");
+-+      throw Exception("SPOONACULAR_API_KEY .env dosyasında bulunamadıysa!");
+-     }
+- 
+-     // 3. _dio nesnesini burada, constructor içinde oluşturuyoruz.
+diff --git a/pubspec.lock b/pubspec.lock
+index 6d7ed5d..f4cd404 100644
+--- a/pubspec.lock
++++ b/pubspec.lock
+@@ -360,6 +360,14 @@ packages:
+       url: "https://pub.dev"
+     source: hosted
+     version: "4.1.2"
++  intl:
++    dependency: "direct main"
++    description:
++      name: intl
++      sha256: "3df61194eb431efc39c4ceba583b95633a403f46c9fd341e550ce0bfa50e9aa5"
++      url: "https://pub.dev"
++    source: hosted
++    version: "0.20.2"
+   io:
+     dependency: transitive
+     description:
+diff --git a/pubspec.yaml b/pubspec.yaml
+index e038115..5d4378b 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -44,6 +44,7 @@ dependencies:
+   google_generative_ai: ^0.4.7 #Yapay Zeka asistan için
+   cupertino_icons: ^1.0.6
+   flutter_dotenv: ^5.2.1
++  intl: ^0.20.2
+ 
+ dev_dependencies:
+   flutter_test:
