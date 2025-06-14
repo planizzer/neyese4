@@ -1,19 +1,24 @@
+// lib/core/api/ai_service.dart
+
 import 'dart:convert';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:neyese4/data/models/enriched_recipe_content.dart';
 import 'package:neyese4/data/models/recipe_detail.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AiService {
-  static const String _apiKey = 'AIzaSyDAZ4USY3WwtY-TUgBg5XQ1TcKw4XRD0EU';
+  // 1. Değişkenleri "static final" olarak değiştiriyoruz.
+  // Bu, onların sadece bir kez oluşturulmasını ve sınıfa ait olmasını sağlar.
+  static final String _apiKey = dotenv.env['GEMINI_API_KEY']!;
 
-  final _model = GenerativeModel(
+  static final _model = GenerativeModel(
     model: 'gemini-1.5-flash',
-    apiKey: _apiKey,
+    apiKey: _apiKey, // Artık _apiKey'e erişim güvenli.
     generationConfig: GenerationConfig(responseMimeType: 'application/json'),
   );
 
+  // Geri kalan metodun kendisinde bir değişiklik yok.
   Future<EnrichedRecipeContent> getEnrichedRecipeContent(RecipeDetail recipe) async {
-    // DÜZENLEME: Prompt'u, püf noktaları için ayrı bir anahtar isteyecek şekilde güncelledik.
     final prompt =
         'You are a helpful and creative Turkish chef assistant. '
         'Take the following recipe and return a JSON object with four keys: "title_tr", "ingredients_tr", "instructions_tr", and "tips_tr".\n'
@@ -27,6 +32,7 @@ class AiService {
         'Instructions: ${recipe.instructions}';
 
     try {
+      // Modeli doğrudan kullanıyoruz.
       final response = await _model.generateContent([Content.text(prompt)]);
 
       if (response.text != null) {

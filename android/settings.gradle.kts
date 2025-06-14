@@ -18,10 +18,10 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    // DÜZELTME: Android Gradle Plugin versiyonunu desteklenen 8.5.0'a sabitliyoruz.
-    id("com.android.application") version "8.5.0" apply false
-    // Kotlin versiyonunu da AGP ile uyumlu olan 1.9.23'e sabitliyoruz.
-    id("org.jetbrains.kotlin.android") version "1.9.23" apply false
+    // Android Gradle Plugin versiyonunu 8.2.1'e çekiyoruz.
+    id("com.android.application") version "8.2.1" apply false
+    // Kotlin versiyonunu da bununla uyumlu olan 1.9.0'a çekiyoruz.
+    id("org.jetbrains.kotlin.android") version "1.9.0" apply false
 }
 
 include(":app")

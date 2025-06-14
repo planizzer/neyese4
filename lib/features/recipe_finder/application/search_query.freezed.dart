@@ -18,7 +18,9 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$SearchQuery {
   List<String> get ingredients => throw _privateConstructorUsedError;
   String? get diet => throw _privateConstructorUsedError;
-  List<String>? get intolerances => throw _privateConstructorUsedError;
+  List<String>? get intolerances =>
+      throw _privateConstructorUsedError; // YENİ EKLENDİ: Mutfak aletlerini arama kriterine ekliyoruz.
+  List<String>? get equipment => throw _privateConstructorUsedError;
 
   /// Create a copy of SearchQuery
   /// with the given fields replaced by the non-null parameter values.
@@ -34,7 +36,10 @@ abstract class $SearchQueryCopyWith<$Res> {
       _$SearchQueryCopyWithImpl<$Res, SearchQuery>;
   @useResult
   $Res call(
-      {List<String> ingredients, String? diet, List<String>? intolerances});
+      {List<String> ingredients,
+      String? diet,
+      List<String>? intolerances,
+      List<String>? equipment});
 }
 
 /// @nodoc
@@ -55,6 +60,7 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
     Object? ingredients = null,
     Object? diet = freezed,
     Object? intolerances = freezed,
+    Object? equipment = freezed,
   }) {
     return _then(_value.copyWith(
       ingredients: null == ingredients
@@ -69,6 +75,10 @@ class _$SearchQueryCopyWithImpl<$Res, $Val extends SearchQuery>
           ? _value.intolerances
           : intolerances // ignore: cast_nullable_to_non_nullable
               as List<String>?,
+      equipment: freezed == equipment
+          ? _value.equipment
+          : equipment // ignore: cast_nullable_to_non_nullable
+              as List<String>?,
     ) as $Val);
   }
 }
@@ -82,7 +92,10 @@ abstract class _$$SearchQueryImplCopyWith<$Res>
   @override
   @useResult
   $Res call(
-      {List<String> ingredients, String? diet, List<String>? intolerances});
+      {List<String> ingredients,
+      String? diet,
+      List<String>? intolerances,
+      List<String>? equipment});
 }
 
 /// @nodoc
@@ -101,6 +114,7 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
     Object? ingredients = null,
     Object? diet = freezed,
     Object? intolerances = freezed,
+    Object? equipment = freezed,
   }) {
     return _then(_$SearchQueryImpl(
       ingredients: null == ingredients
@@ -115,6 +129,10 @@ class __$$SearchQueryImplCopyWithImpl<$Res>
           ? _value._intolerances
           : intolerances // ignore: cast_nullable_to_non_nullable
               as List<String>?,
+      equipment: freezed == equipment
+          ? _value._equipment
+          : equipment // ignore: cast_nullable_to_non_nullable
+              as List<String>?,
     ));
   }
 }
@@ -125,9 +143,11 @@ class _$SearchQueryImpl implements _SearchQuery {
   const _$SearchQueryImpl(
       {required final List<String> ingredients,
       this.diet,
-      final List<String>? intolerances})
+      final List<String>? intolerances,
+      final List<String>? equipment})
       : _ingredients = ingredients,
-        _intolerances = intolerances;
+        _intolerances = intolerances,
+        _equipment = equipment;
 
   final List<String> _ingredients;
   @override
@@ -149,9 +169,21 @@ class _$SearchQueryImpl implements _SearchQuery {
     return EqualUnmodifiableListView(value);
   }
 
+// YENİ EKLENDİ: Mutfak aletlerini arama kriterine ekliyoruz.
+  final List<String>? _equipment;
+// YENİ EKLENDİ: Mutfak aletlerini arama kriterine ekliyoruz.
+  @override
+  List<String>? get equipment {
+    final value = _equipment;
+    if (value == null) return null;
+    if (_equipment is EqualUnmodifiableListView) return _equipment;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(value);
+  }
+
   @override
   String toString() {
-    return 'SearchQuery(ingredients: $ingredients, diet: $diet, intolerances: $intolerances)';
+    return 'SearchQuery(ingredients: $ingredients, diet: $diet, intolerances: $intolerances, equipment: $equipment)';
   }
 
   @override
@@ -163,7 +195,9 @@ class _$SearchQueryImpl implements _SearchQuery {
                 .equals(other._ingredients, _ingredients) &&
             (identical(other.diet, diet) || other.diet == diet) &&
             const DeepCollectionEquality()
-                .equals(other._intolerances, _intolerances));
+                .equals(other._intolerances, _intolerances) &&
+            const DeepCollectionEquality()
+                .equals(other._equipment, _equipment));
   }
 
   @override
@@ -171,7 +205,8 @@ class _$SearchQueryImpl implements _SearchQuery {
       runtimeType,
       const DeepCollectionEquality().hash(_ingredients),
       diet,
-      const DeepCollectionEquality().hash(_intolerances));
+      const DeepCollectionEquality().hash(_intolerances),
+      const DeepCollectionEquality().hash(_equipment));
 
   /// Create a copy of SearchQuery
   /// with the given fields replaced by the non-null parameter values.
@@ -186,14 +221,18 @@ abstract class _SearchQuery implements SearchQuery {
   const factory _SearchQuery(
       {required final List<String> ingredients,
       final String? diet,
-      final List<String>? intolerances}) = _$SearchQueryImpl;
+      final List<String>? intolerances,
+      final List<String>? equipment}) = _$SearchQueryImpl;
 
   @override
   List<String> get ingredients;
   @override
   String? get diet;
   @override
-  List<String>? get intolerances;
+  List<String>?
+      get intolerances; // YENİ EKLENDİ: Mutfak aletlerini arama kriterine ekliyoruz.
+  @override
+  List<String>? get equipment;
 
   /// Create a copy of SearchQuery
   /// with the given fields replaced by the non-null parameter values.

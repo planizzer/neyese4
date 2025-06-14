@@ -10,10 +10,13 @@ import 'package:neyese4/data/repositories/saved_recipe_repository.dart';
 import 'package:neyese4/data/repositories/user_preferences_repository.dart'; // Repository'yi import ediyoruz
 import 'package:neyese4/screens/kitchen_screen.dart';
 import 'package:neyese4/main_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
   // Flutter uygulamasının başlamadan önce yerel kodlarla iletişim kurabilmesini sağlıyoruz.
   WidgetsFlutterBinding.ensureInitialized();
+
+  await dotenv.load(fileName: ".env");
 
   // Hive'ı Flutter için başlatıyoruz.
   await Hive.initFlutter();

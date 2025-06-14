@@ -44,15 +44,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .toList();
 
     if (ingredients.isNotEmpty) {
+      // Kullanıcının kayıtlı tercihlerini okuyoruz.
       final userPrefs = ref.read(userPreferencesProvider);
+
+      // Arama nesnesini oluştururken artık 'equipment' bilgisini de ekliyoruz.
       final searchQuery = SearchQuery(
         ingredients: ingredients,
         diet: userPrefs.diet,
         intolerances: userPrefs.intolerances,
+        equipment: userPrefs.equipment, // DÜZELTME: Bu satır eklendi.
       );
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (context) => RecipeResultsScreen(searchQuery: searchQuery),
-      ));
+
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => RecipeResultsScreen(searchQuery: searchQuery),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lütfen en az bir malzeme girin.')),

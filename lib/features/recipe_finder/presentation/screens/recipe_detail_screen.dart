@@ -29,6 +29,7 @@ class RecipeDetailScreen extends ConsumerWidget {
           return CustomScrollView(
             slivers: [
               SliverAppBar(
+                surfaceTintColor: Colors.transparent,
                 expandedHeight: 250.0,
                 pinned: true,
                 title: enrichedContentAsyncValue.when(
@@ -54,11 +55,9 @@ class RecipeDetailScreen extends ConsumerWidget {
                   background: Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.error)),
                 ),
               ),
-              // SliverToBoxAdapter, Sliver'lar içinde normal widget'lar kullanmamızı sağlar.
               SliverToBoxAdapter(
                 child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    // Gemini'den gelen zenginleştirilmiş içeriği bekliyoruz.
                     child: enrichedContentAsyncValue.when(
                       loading: () => const Center(heightFactor: 5, child: CircularProgressIndicator()),
                       error: (err, stack) => Center(child: Text('Tarif içeriği yüklenemedi: $err', style: const TextStyle(color: Colors.red))),

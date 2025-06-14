@@ -8,5 +8,7 @@ class SearchQuery with _$SearchQuery {
     required List<String> ingredients,
     String? diet,
     List<String>? intolerances,
+    // YENİ EKLENDİ: Mutfak aletlerini arama kriterine ekliyoruz.
+    List<String>? equipment,
   }) = _SearchQuery;
 }
