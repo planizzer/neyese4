@@ -4,6 +4,7 @@ import 'package:neyese4/data/models/recipe_suggestion.dart';
 import 'package:neyese4/data/providers.dart';
 import 'package:neyese4/features/recipe_finder/application/search_query.dart'; // Yeni modelimizi import ettik.
 import 'package:neyese4/data/models/user_preferences.dart'; // Ekledik
+import 'package:neyese4/data/models/enriched_recipe_content.dart';
 
 
 // ... Mevcut provider'lar (değişiklik yok) ...
@@ -38,12 +39,10 @@ FutureProvider.autoDispose.family<List<RecipeSuggestion>, SearchQuery>((ref, que
     UserPreferences(diet: query.diet, intolerances: query.intolerances),
   );
 });
-// YENİ EKLENDİ: ZENGİNLEŞTİRİLMİŞ TARİF TALİMATLARI İÇİN PROVIDER
-// Bu provider, bir tarif detayı nesnesi alır ve onun için Gemini'den
-// zenginleştirilmiş metin talep eder.
-final enrichedInstructionsProvider = FutureProvider.autoDispose.family<String, RecipeDetail>((ref, recipe) {
-  // AI servisine erişiyoruz.
+
+// DÜZENLENDİ: Provider'ın adını ve döndürdüğü veri tipini güncelledik.
+final enrichedRecipeProvider = FutureProvider.autoDispose.family<EnrichedRecipeContent, RecipeDetail>((ref, recipe) {
   final aiService = ref.watch(aiServiceProvider);
-  // ve tarifi zenginleştirmesi için gönderiyoruz.
-  return aiService.getEnrichedInstructions(recipe);
+  // AI servisindeki yeni fonksiyonu çağırıyoruz.
+  return aiService.getEnrichedRecipeContent(recipe);
 });
