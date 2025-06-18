@@ -3,13 +3,12 @@ import 'package:neyese4/data/models/recipe_detail.dart';
 import 'package:neyese4/data/models/recipe_suggestion.dart';
 import 'package:neyese4/data/models/user_preferences.dart';
 
+import '../../features/recipe_finder/application/search_query.dart';
+
 abstract class RecipeRepository {
   Future<List<RecipeSuggestion>> getRandomRecipes();
   Future<RecipeDetail> getRecipeDetailById(int id);
-  Future<List<RecipeSuggestion>> findRecipesByIngredients(
-      List<String> ingredients,
-      UserPreferences preferences,
-      );
+  Future<List<RecipeSuggestion>> findRecipes(SearchQuery query);
 }
 
 class SpoonacularRecipeRepository implements RecipeRepository {
@@ -54,44 +53,41 @@ class SpoonacularRecipeRepository implements RecipeRepository {
     } catch (e) { throw 'Beklenmedik bir hata oluştu: $e'; }
   }
 
-  // ARAMA FONKSİYONU TAMAMEN GÜNCELLENDİ
+  // GÜNCELLENDİ: Metodun adı ve aldığı parametreler değişti
   @override
-  Future<List<RecipeSuggestion>> findRecipesByIngredients(
-      List<String> ingredients,
-      UserPreferences preferences,
-      ) async {
-    final ingredientsString = _translateIngredients(ingredients);
-
+  Future<List<RecipeSuggestion>> findRecipes(SearchQuery query) async {
     final Map<String, dynamic> queryParameters = {
-      // DÜZELTME: Parametre adını 'includeIngredients' olarak değiştirdik.
-      'includeIngredients': ingredientsString,
       'number': 20,
     };
 
-    if (preferences.diet != null) {
-      queryParameters['diet'] = preferences.diet;
+    // Anahtar kelime ile arama
+    if (query.query != null && query.query!.isNotEmpty) {
+      queryParameters['query'] = query.query;
     }
 
-    if (preferences.intolerances != null && preferences.intolerances!.isNotEmpty) {
-      queryParameters['intolerances'] = preferences.intolerances!.join(',');
+    // Malzemelerle arama
+    if (query.ingredients != null && query.ingredients!.isNotEmpty) {
+      queryParameters['includeIngredients'] = _translateIngredients(query.ingredients!);
+    }
+
+    // Diyet, alerji ve diğer filtreler
+    if (query.diet != null) { queryParameters['diet'] = query.diet; }
+    if (query.intolerances != null && query.intolerances!.isNotEmpty) { queryParameters['intolerances'] = query.intolerances!.join(','); }
+    if (query.type != null) { queryParameters['type'] = query.type; }
+    if (query.cuisine != null) { queryParameters['cuisine'] = query.cuisine; }
+    // YENİ EKLENDİ: maxReadyTime parametresini API isteğine ekliyoruz.
+    if (query.maxReadyTime != null) {
+      queryParameters['maxReadyTime'] = query.maxReadyTime;
     }
 
     try {
-      // DÜZELTME: API endpoint'ini '/recipes/complexSearch' olarak değiştirdik.
-      final response = await dio.get(
-        '/recipes/complexSearch',
-        queryParameters: queryParameters,
-      );
-
+      final response = await dio.get('/recipes/complexSearch', queryParameters: queryParameters);
       if (response.statusCode == 200) {
-        // DÜZELTME: complexSearch'in cevabı 'results' anahtarı altındadır.
         final List<dynamic> results = response.data['results'];
         return results.map((json) => RecipeSuggestion.fromJson(json)).toList();
       } else {
         throw 'API isteği başarısız oldu: ${response.statusCode}';
       }
-    } on DioException catch (e) {
-      throw 'API isteği sırasında bir hata oluştu: $e';
     } catch (e) {
       throw 'Beklenmedik bir hata oluştu: $e';
     }

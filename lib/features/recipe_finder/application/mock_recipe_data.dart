@@ -43,7 +43,8 @@ final mockEnrichedRecipeContent = EnrichedRecipeContent(
     PreparationStep(
         stepNumber: 2,
         description: "Geniş bir tavada etleri yüksek ateşte mühürleyin. Ayrı bir sos tavasında 2 yemek kaşığı tereyağını eritin ve salçayı kavurun. Az su ekleyerek sos kıvamına getirin.",
-        videoPrompt: "Close-up shot of beef strips searing in a hot pan. A separate small pan with butter melting and tomato paste being stirred in."
+        videoPrompt: "Close-up shot of beef strips searing in a hot pan. A separate small pan with butter melting and tomato paste being stirred in.",
+        durationInSeconds: 1800 // YENİ: 30 dakika = 1800 saniye
     ),
     PreparationStep(
         stepNumber: 3,
