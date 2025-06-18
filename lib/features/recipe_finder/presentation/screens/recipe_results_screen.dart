@@ -13,9 +13,9 @@ class RecipeResultsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final resultsAsyncValue = ref.watch(recipesByIngredientsProvider(searchQuery));
+    final resultsAsyncValue = ref.watch(searchResultsProvider(searchQuery));
     return Scaffold(
-      appBar: AppBar(title: Text('${searchQuery.ingredients.join(', ')} için Tarifler')),
+      appBar: AppBar(title: Text('${searchQuery.ingredients?.join(', ')} için Tarifler')),
       body: resultsAsyncValue.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Hata oluştu: $err')),

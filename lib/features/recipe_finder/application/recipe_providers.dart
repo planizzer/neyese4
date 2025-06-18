@@ -7,22 +7,69 @@ import 'package:neyese4/data/models/user_preferences.dart';
 import 'package:neyese4/data/providers.dart';
 import 'package:neyese4/features/recipe_finder/application/search_query.dart';
 
-// --- ARAMA VE ÖNERİ PROVIDER'LARI (Değişiklik yok) ---
-final randomRecipesProvider = FutureProvider.autoDispose<List<RecipeSuggestion>>((ref) {
+final randomRecipesProvider = FutureProvider.autoDispose<List<RecipeSuggestion>>((ref) async {
   final recipeRepository = ref.watch(recipeRepositoryProvider);
-  return recipeRepository.getRandomRecipes();
+  final aiService = ref.watch(aiServiceProvider);
+
+  // 1. Önce İngilizce başlıklarla tarifleri al
+  final originalRecipes = await recipeRepository.getRandomRecipes();
+  if (originalRecipes.isEmpty) {
+    return [];
+  }
+
+  // 2. Sadece başlıkları bir listeye topla
+  final englishTitles = originalRecipes.map((e) => e.title).toList();
+
+  // 3. Tüm başlıkları tek seferde çeviri için AI'a gönder
+  final turkishTitles = await aiService.translateRecipeTitles(englishTitles);
+
+  // 4. Orijinal tarif listesini, çevrilmiş başlıklarla yeni bir listeye dönüştür
+  if (originalRecipes.length == turkishTitles.length) {
+    final translatedRecipes = <RecipeSuggestion>[];
+    for (int i = 0; i < originalRecipes.length; i++) {
+      translatedRecipes.add(
+        originalRecipes[i].copyWith(title: turkishTitles[i]),
+      );
+    }
+    return translatedRecipes;
+  }
+
+  // Çeviri sayısı tutmazsa, güvenli liman olarak orijinal listeyi döndür
+  return originalRecipes;
 });
 
-final recipesByIngredientsProvider =
-FutureProvider.autoDispose.family<List<RecipeSuggestion>, SearchQuery>((ref, query) {
-  if (query.ingredients.isEmpty) {
-    return Future.value([]);
-  }
+// GÜNCELLENDİ: Bu provider artık arama sonuçlarını da Türkçeleştiriyor.
+final searchResultsProvider =
+FutureProvider.autoDispose.family<List<RecipeSuggestion>, SearchQuery>((ref, query) async {
+
   final recipeRepository = ref.watch(recipeRepositoryProvider);
-  return recipeRepository.findRecipesByIngredients(
-    query.ingredients,
-    UserPreferences(diet: query.diet, intolerances: query.intolerances),
-  );
+  final aiService = ref.watch(aiServiceProvider);
+
+  // 1. Önce İngilizce başlıklarla arama sonuçlarını al
+  final originalRecipes = await recipeRepository.findRecipes(query);
+  if (originalRecipes.isEmpty) {
+    return [];
+  }
+
+  // 2. Sadece başlıkları bir listeye topla
+  final englishTitles = originalRecipes.map((e) => e.title).toList();
+
+  // 3. Tüm başlıkları tek seferde çeviri için AI'a gönder
+  final turkishTitles = await aiService.translateRecipeTitles(englishTitles);
+
+  // 4. Orijinal sonuçları, çevrilmiş başlıklarla yeni bir listeye dönüştür
+  if (originalRecipes.length == turkishTitles.length) {
+    final translatedRecipes = <RecipeSuggestion>[];
+    for (int i = 0; i < originalRecipes.length; i++) {
+      translatedRecipes.add(
+        originalRecipes[i].copyWith(title: turkishTitles[i]),
+      );
+    }
+    return translatedRecipes;
+  }
+
+  // Güvenli liman olarak orijinal listeyi döndür
+  return originalRecipes;
 });
 
 
@@ -65,4 +112,12 @@ final isRecipeSavedProvider = Provider.autoDispose.family<bool, int>((ref, recip
   ref.watch(savedRecipesStreamProvider);
   final repository = ref.watch(savedRecipeRepositoryProvider);
   return repository.isRecipeSaved(recipeId);
+});
+
+// YENİ: Akşam yemeği önerileri için özel bir provider
+final dinnerIdeasProvider = FutureProvider.autoDispose<List<RecipeSuggestion>>((ref) {
+  // Akşam yemeği için 'ana yemek' tipinde bir arama yapıyoruz.
+  const query = SearchQuery(type: 'main course');
+  // Mevcut arama provider'ımızı bu sabit sorguyla tetikliyoruz.
+  return ref.watch(searchResultsProvider(query).future);
 });

@@ -3,13 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:neyese4/core/theme/app_colors.dart';
 import 'package:neyese4/core/theme/app_text_styles.dart';
-import 'package:neyese4/data/models/kitchen_ingredient.dart';
+import 'package:neyese4/data/models/pantry_item.dart';
 import 'package:neyese4/data/models/saved_recipe.dart';
 import 'package:neyese4/data/models/user_preferences.dart'; // Yeni modelimizi import ediyoruz
 import 'package:neyese4/data/repositories/saved_recipe_repository.dart';
 import 'package:neyese4/data/repositories/user_preferences_repository.dart'; // Repository'yi import ediyoruz
 import 'package:neyese4/screens/kitchen_screen.dart';
 import 'package:neyese4/main_screen.dart';
+import 'package:neyese4/data/models/pantry_item.dart'; // kitchen_ingredient import'u yerine bunu kullanın
+import 'package:neyese4/data/repositories/pantry_repository.dart'; // kitchen_box sabitini buraya taşıyacağız
+
 
 
 Future<void> main() async {
@@ -23,12 +26,12 @@ Future<void> main() async {
 
   // Tüm adaptörlerimizi kaydediyoruz.
   Hive.registerAdapter(SavedRecipeAdapter());
-  Hive.registerAdapter(KitchenIngredientAdapter());
+  Hive.registerAdapter(PantryItemAdapter());
   Hive.registerAdapter(UserPreferencesAdapter()); // YENİ EKLENDİ
 
   // Tüm kutularımızı açıyoruz.
   await Hive.openBox<SavedRecipe>(kSavedRecipesBox);
-  await Hive.openBox<KitchenIngredient>(kKitchenBox);
+  await Hive.openBox<PantryItem>(kPantryBoxName);
   await Hive.openBox<UserPreferences>(kUserPreferencesBox); // YENİ EKLENDİ
 
   runApp(

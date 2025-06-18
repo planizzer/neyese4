@@ -1,47 +1,53 @@
+// lib/data/providers.dart
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:neyese4/core/api/dio_client.dart';
 import 'package:neyese4/core/api/ai_service.dart';
+import 'package:neyese4/core/api/dio_client.dart'; // dio_client importu
 import 'package:neyese4/data/models/saved_recipe.dart';
+import 'package:neyese4/data/repositories/product_repository.dart';
 import 'package:neyese4/data/repositories/recipe_repository.dart';
 import 'package:neyese4/data/repositories/saved_recipe_repository.dart';
+import 'package:neyese4/data/models/pantry_item.dart';
+import 'package:neyese4/data/repositories/pantry_repository.dart';
 
-// --- API PROVIDER'LARI (DEĞİŞİKLİK YOK) ---
-final dioClientProvider = Provider<Dio>((ref) {
-  return DioClient().dio;
+
+// --- API PROVIDER'LARI ---
+
+final productRepositoryProvider = Provider((ref) => ProductRepository());
+
+
+// GÜNCELLENDİ: Bu provider artık doğrudan Dio nesnesi yerine, DioClient sınıfının kendisini sağlar.
+// Bu sayede DioClient'ın constructor'ı doğru şekilde çağrılır.
+final dioClientProvider = Provider<DioClient>((ref) {
+  return DioClient();
 });
 
+// GÜNCELLENDİ: Bu provider artık dioClientProvider'dan DioClient'ı alır ve içindeki .dio getter'ını kullanır.
 final recipeRepositoryProvider = Provider<RecipeRepository>((ref) {
-  final dio = ref.watch(dioClientProvider);
-  return SpoonacularRecipeRepository(dio: dio);
+  final dioClient = ref.watch(dioClientProvider);
+  return SpoonacularRecipeRepository(dio: dioClient.dio);
 });
 
-// YENİ EKLENDİ: AI Servisi için Provider
 final aiServiceProvider = Provider<AiService>((ref) {
   return AiService();
 });
 
-// --- YEREL VERİTABANI (HIVE) PROVIDER'LARI (YENİ EKLENDİ) ---
+// --- YEREL VERİTABANI (HIVE) PROVIDER'LARI (Değişiklik yok) ---
+// YENİ: Akıllı Kiler (Pantry) kutusunu sağlayan provider.
+final pantryBoxProvider = Provider((ref) => Hive.box<PantryItem>(kPantryBoxName));
 
-// 1. SavedRecipeRepository'mizin bir örneğini oluşturan Provider.
+
 final savedRecipeRepositoryProvider = Provider<SavedRecipeRepository>((ref) {
   return SavedRecipeRepository();
 });
 
-// 2. Kaydedilmiş tariflerin listesini sunan Provider.
-// Bu provider, alttaki StreamProvider'ı dinleyerek her zaman güncel listeyi tutar.
 final savedRecipesListProvider = Provider<List<SavedRecipe>>((ref) {
-  // Veritabanındaki değişiklikleri dinliyoruz.
   ref.watch(savedRecipesStreamProvider);
-  // Ve en güncel listeyi repository'den alıp sunuyoruz.
   return ref.read(savedRecipeRepositoryProvider).getAllSavedRecipes();
 });
 
-
-// 3. Veritabanındaki değişiklikleri gerçek zamanlı olarak dinleyen StreamProvider.
-// Bu provider'ın ana amacı, veritabanında bir değişiklik olduğunda (ekleme/silme)
-// 'savedRecipesListProvider'ın yeniden tetiklenmesini ve güncellenmesini sağlamaktır.
-final savedRecipesStreamProvider = StreamProvider<BoxEvent>((ref) {
+final savedRecipesStreamProvider = StreamProvider.autoDispose<BoxEvent>((ref) {
   return ref.watch(savedRecipeRepositoryProvider).watchRecipes();
 });
