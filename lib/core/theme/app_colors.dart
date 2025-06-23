@@ -13,4 +13,6 @@ class AppColors {
   static const Color primaryText = Color(0xFF2D3748);   // Koyu Kurşun
   static const Color background = Color(0xFFF7FAFC);   // Çok Açık Gri
   static const Color neutralGrey = Color(0xFFA0AEC0);   // Nötr Gri
+  static const Color primaryBackground = Color(0xFFEDF2F7); // Açık Gri/Mavi tonu
+
 }

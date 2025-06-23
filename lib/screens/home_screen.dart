@@ -1,17 +1,14 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:neyese4/core/theme/app_colors.dart';
 import 'package:neyese4/core/theme/app_text_styles.dart';
 import 'package:neyese4/data/models/recipe_suggestion.dart';
-import 'package:neyese4/data/models/saved_recipe.dart';
 import 'package:neyese4/data/providers.dart';
-import 'package:neyese4/features/profile/application/profile_providers.dart';
-import 'package:neyese4/features/recipe_finder/application/recipe_providers.dart';
 import 'package:neyese4/features/recipe_finder/application/search_query.dart';
-import 'package:neyese4/features/recipe_finder/presentation/screens/recipe_detail_screen.dart';
 import 'package:neyese4/features/recipe_finder/presentation/screens/recipe_results_screen.dart';
 import 'package:neyese4/features/recipe_finder/presentation/widgets/recipe_card.dart';
+import 'package:neyese4/core/widgets/chef_loading_indicator.dart';
+
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -28,8 +25,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
+// lib/screens/home_screen.dart
+
   void _findRecipes() {
-    // ... Bu metotta değişiklik yok ...
+    final rawQuery = _searchController.text.trim();
+    if (rawQuery.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lütfen bir arama terimi veya malzeme girin.')),
+      );
+      return;
+    }
+
+    final userPrefs = ref.read(userPreferencesProvider);
+    SearchQuery searchQuery;
+
+    // Virgül veya boşlukla ayrılmış kelimeleri malzeme olarak kabul et.
+    final ingredients = rawQuery
+        .replaceAll(',', ' ') // Virgülleri boşluğa çevir
+        .split(' ')          // Boşluklara göre ayır
+        .map((e) => e.trim())  // Başındaki/sonundaki boşlukları temizle
+        .where((e) => e.isNotEmpty) // Boş elemanları kaldır
+        .toList();
+
+    // Eğer birden fazla kelime varsa veya tek kelime ama malzeme gibi görünüyorsa
+    // malzeme araması yap. Şimdilik basitçe, her zaman malzeme araması yapabiliriz.
+    searchQuery = SearchQuery(
+      ingredients: ingredients,
+      diet: userPrefs.diet,
+      intolerances: userPrefs.intolerances,
+    );
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => RecipeResultsScreen(searchQuery: searchQuery),
+      ),
+    );
   }
 
   void _findRecipesFromMyKitchen() {
@@ -55,7 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // GÜNCELLENDİ: pantryBoxProvider kullanılıyor
     final pantryBox = ref.watch(pantryBoxProvider);
     final myPantryItems = pantryBox.values.toList();
-    final savedRecipes = ref.watch(savedRecipesListProvider);
+
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -72,8 +102,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 40),
               _buildCategoriesSection(),
-              const SizedBox(height: 40),
-              _buildLatestSavesSection(savedRecipes),
+              const SizedBox(height: 40),Consumer(
+                builder: (context, ref, child) {
+                  // Artık Firestore'dan gelen anlık Stream'i dinliyoruz.
+                  final savedRecipesAsync = ref.watch(savedRecipesStreamProvider);
+
+                  // Stream'in durumuna göre arayüzü çiziyoruz.
+                  return savedRecipesAsync.when(
+                    loading: () => const SizedBox.shrink(), // Yüklenirken hiçbir şey gösterme
+                    error: (e, s) => const SizedBox.shrink(), // Hata olursa hiçbir şey gösterme
+                    data: (recipes) {
+                      // Eğer hiç kaydedilmiş tarif yoksa, bölümü hiç çizme
+                      if (recipes.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      // Tarifler varsa, karuseli _buildRecipeCarousel ile çiz
+                      return _buildRecipeCarousel(
+                        title: 'Son Kaydettiklerin',
+                        recipes: recipes.reversed.map((e) => RecipeSuggestion(id: e.id, title: e.title, image: e.image)).toList(),
+                      );
+                    },
+                  );
+                },
+              ),
               _buildRecipeCarousel(title: 'Akşam Yemeği Fikirleri', asyncValue: dinnerIdeasAsyncValue),
               _buildRecipeCarousel(title: 'Günün Önerileri', asyncValue: randomRecipesAsyncValue),
             ],
@@ -220,13 +271,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildLatestSavesSection(List<SavedRecipe> savedRecipes) {
-    if (savedRecipes.isEmpty) return const SizedBox.shrink();
-    return _buildRecipeCarousel(
-      title: 'Son Kaydettiklerin',
-      recipes: savedRecipes.reversed.map((e) => RecipeSuggestion(id: e.id, title: e.title, image: e.image)).toList(),
-    );
-  }
 
   Widget _buildRecipeCarousel({
     required String title,
@@ -246,7 +290,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: asyncValue != null
               ? asyncValue.when(
             data: (recipes) => _buildCarouselListView(recipes),
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => Center(child: ChefLoadingIndicator()),
             error: (err, stack) => Center(child: Text('Öneriler yüklenemedi: $err')),
           )
               : _buildCarouselListView(recipes ?? []),

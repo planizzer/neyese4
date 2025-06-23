@@ -1,23 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:neyese4/core/theme/app_colors.dart';
-import 'package:neyese4/core/theme/app_text_styles.dart';
+
 import 'package:neyese4/data/models/pantry_item.dart';
 import 'package:neyese4/data/models/saved_recipe.dart';
 import 'package:neyese4/data/models/user_preferences.dart'; // Yeni modelimizi import ediyoruz
 import 'package:neyese4/data/repositories/saved_recipe_repository.dart';
 import 'package:neyese4/data/repositories/user_preferences_repository.dart'; // Repository'yi import ediyoruz
-import 'package:neyese4/screens/kitchen_screen.dart';
-import 'package:neyese4/main_screen.dart';
-import 'package:neyese4/data/models/pantry_item.dart'; // kitchen_ingredient import'u yerine bunu kullanın
 import 'package:neyese4/data/repositories/pantry_repository.dart'; // kitchen_box sabitini buraya taşıyacağız
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // FlutterFire CLI'ın oluşturduğu dosya
+import 'package:neyese4/features/auth/presentation/auth_wrapper.dart'; // Yeni import
+
+import 'package:firebase_app_check/firebase_app_check.dart'; // Bu satırı ekle
+
 
 
 
 Future<void> main() async {
-  // Flutter uygulamasının başlamadan önce yerel kodlarla iletişim kurabilmesini sağlıyoruz.
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Geliştirme ortamında olduğumuzu belirtmek için "debug" sağlayıcısını kullanıyoruz.
+  await FirebaseAppCheck.instance.activate(
+    webProvider: ReCaptchaV3Provider('6Le3pWUrAAAAA0gROpIJynF_Z-Zu61wJIZEYLbQ'),
+    androidProvider: AndroidProvider.debug,
+    appleProvider: AppleProvider.debug, // iOS için de ekleyelim
+  );
 
 
 
@@ -47,27 +59,8 @@ class NeyeseApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Neyese',
-      theme: ThemeData(
-        fontFamily: 'Inter',
-        scaffoldBackgroundColor: AppColors.background,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primaryAction,
-          primary: AppColors.primaryAction,
-          secondary: AppColors.accent,
-          background: AppColors.background,
-        ),
-        textTheme: const TextTheme(
-          displayLarge: AppTextStyles.h1,
-          displayMedium: AppTextStyles.h2,
-          bodyLarge: AppTextStyles.body,
-          bodyMedium: AppTextStyles.body,
-          labelLarge: AppTextStyles.button,
-          bodySmall: AppTextStyles.caption,
-        ),
-        useMaterial3: true,
-      ),
-      home: const MainScreen(),
+      // ... (theme ayarları aynı)
+      home: const AuthWrapper(), // DEĞİŞİKLİK: Uygulama artık AuthWrapper ile başlayacak.
       debugShowCheckedModeBanner: false,
     );
   }

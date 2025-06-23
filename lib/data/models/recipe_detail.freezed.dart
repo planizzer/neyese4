@@ -23,12 +23,12 @@ mixin _$RecipeDetail {
   int get id => throw _privateConstructorUsedError;
   String get title => throw _privateConstructorUsedError;
   String get image => throw _privateConstructorUsedError;
-  int get readyInMinutes =>
-      throw _privateConstructorUsedError; // Hazırlanma süresi
+  int get readyInMinutes => throw _privateConstructorUsedError;
+  int get servings =>
+      throw _privateConstructorUsedError; // <-- YENİ EKLENEN SATIR
   List<Ingredient> get extendedIngredients =>
-      throw _privateConstructorUsedError; // Malzeme listesi
-  String get instructions =>
-      throw _privateConstructorUsedError; // Hazırlanış talimatları (HTML olarak gelebilir)
+      throw _privateConstructorUsedError;
+  String get instructions => throw _privateConstructorUsedError;
   String? get summary => throw _privateConstructorUsedError;
 
   /// Serializes this RecipeDetail to a JSON map.
@@ -52,6 +52,7 @@ abstract class $RecipeDetailCopyWith<$Res> {
       String title,
       String image,
       int readyInMinutes,
+      int servings,
       List<Ingredient> extendedIngredients,
       String instructions,
       String? summary});
@@ -76,6 +77,7 @@ class _$RecipeDetailCopyWithImpl<$Res, $Val extends RecipeDetail>
     Object? title = null,
     Object? image = null,
     Object? readyInMinutes = null,
+    Object? servings = null,
     Object? extendedIngredients = null,
     Object? instructions = null,
     Object? summary = freezed,
@@ -96,6 +98,10 @@ class _$RecipeDetailCopyWithImpl<$Res, $Val extends RecipeDetail>
       readyInMinutes: null == readyInMinutes
           ? _value.readyInMinutes
           : readyInMinutes // ignore: cast_nullable_to_non_nullable
+              as int,
+      servings: null == servings
+          ? _value.servings
+          : servings // ignore: cast_nullable_to_non_nullable
               as int,
       extendedIngredients: null == extendedIngredients
           ? _value.extendedIngredients
@@ -126,6 +132,7 @@ abstract class _$$RecipeDetailImplCopyWith<$Res>
       String title,
       String image,
       int readyInMinutes,
+      int servings,
       List<Ingredient> extendedIngredients,
       String instructions,
       String? summary});
@@ -148,6 +155,7 @@ class __$$RecipeDetailImplCopyWithImpl<$Res>
     Object? title = null,
     Object? image = null,
     Object? readyInMinutes = null,
+    Object? servings = null,
     Object? extendedIngredients = null,
     Object? instructions = null,
     Object? summary = freezed,
@@ -168,6 +176,10 @@ class __$$RecipeDetailImplCopyWithImpl<$Res>
       readyInMinutes: null == readyInMinutes
           ? _value.readyInMinutes
           : readyInMinutes // ignore: cast_nullable_to_non_nullable
+              as int,
+      servings: null == servings
+          ? _value.servings
+          : servings // ignore: cast_nullable_to_non_nullable
               as int,
       extendedIngredients: null == extendedIngredients
           ? _value._extendedIngredients
@@ -193,6 +205,7 @@ class _$RecipeDetailImpl implements _RecipeDetail {
       required this.title,
       required this.image,
       required this.readyInMinutes,
+      required this.servings,
       required final List<Ingredient> extendedIngredients,
       required this.instructions,
       this.summary})
@@ -209,9 +222,11 @@ class _$RecipeDetailImpl implements _RecipeDetail {
   final String image;
   @override
   final int readyInMinutes;
-// Hazırlanma süresi
+  @override
+  final int servings;
+// <-- YENİ EKLENEN SATIR
   final List<Ingredient> _extendedIngredients;
-// Hazırlanma süresi
+// <-- YENİ EKLENEN SATIR
   @override
   List<Ingredient> get extendedIngredients {
     if (_extendedIngredients is EqualUnmodifiableListView)
@@ -220,16 +235,14 @@ class _$RecipeDetailImpl implements _RecipeDetail {
     return EqualUnmodifiableListView(_extendedIngredients);
   }
 
-// Malzeme listesi
   @override
   final String instructions;
-// Hazırlanış talimatları (HTML olarak gelebilir)
   @override
   final String? summary;
 
   @override
   String toString() {
-    return 'RecipeDetail(id: $id, title: $title, image: $image, readyInMinutes: $readyInMinutes, extendedIngredients: $extendedIngredients, instructions: $instructions, summary: $summary)';
+    return 'RecipeDetail(id: $id, title: $title, image: $image, readyInMinutes: $readyInMinutes, servings: $servings, extendedIngredients: $extendedIngredients, instructions: $instructions, summary: $summary)';
   }
 
   @override
@@ -242,6 +255,8 @@ class _$RecipeDetailImpl implements _RecipeDetail {
             (identical(other.image, image) || other.image == image) &&
             (identical(other.readyInMinutes, readyInMinutes) ||
                 other.readyInMinutes == readyInMinutes) &&
+            (identical(other.servings, servings) ||
+                other.servings == servings) &&
             const DeepCollectionEquality()
                 .equals(other._extendedIngredients, _extendedIngredients) &&
             (identical(other.instructions, instructions) ||
@@ -257,6 +272,7 @@ class _$RecipeDetailImpl implements _RecipeDetail {
       title,
       image,
       readyInMinutes,
+      servings,
       const DeepCollectionEquality().hash(_extendedIngredients),
       instructions,
       summary);
@@ -283,6 +299,7 @@ abstract class _RecipeDetail implements RecipeDetail {
       required final String title,
       required final String image,
       required final int readyInMinutes,
+      required final int servings,
       required final List<Ingredient> extendedIngredients,
       required final String instructions,
       final String? summary}) = _$RecipeDetailImpl;
@@ -297,11 +314,13 @@ abstract class _RecipeDetail implements RecipeDetail {
   @override
   String get image;
   @override
-  int get readyInMinutes; // Hazırlanma süresi
+  int get readyInMinutes;
   @override
-  List<Ingredient> get extendedIngredients; // Malzeme listesi
+  int get servings; // <-- YENİ EKLENEN SATIR
   @override
-  String get instructions; // Hazırlanış talimatları (HTML olarak gelebilir)
+  List<Ingredient> get extendedIngredients;
+  @override
+  String get instructions;
   @override
   String? get summary;
 

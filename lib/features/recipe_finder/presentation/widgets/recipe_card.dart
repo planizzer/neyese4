@@ -2,7 +2,6 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:neyese4/core/theme/app_colors.dart';
 import 'package:neyese4/core/theme/app_text_styles.dart';
 import 'package:neyese4/data/models/recipe_suggestion.dart';
 import 'package:neyese4/features/recipe_finder/presentation/screens/recipe_detail_screen.dart';

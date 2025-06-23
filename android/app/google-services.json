@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1044442052507",
+    "project_id": "planizzer-neyese",
+    "storage_bucket": "planizzer-neyese.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1044442052507:android:88a65bad30b021447f933e",
+        "android_client_info": {
+          "package_name": "com.example.neyese4"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1044442052507-tqomkcseegg12d10fk9j2d5s3d75tpll.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.neyese4",
+            "certificate_hash": "5292cdf45f79562eade4d7b2be3d784cf8c78c7f"
+          }
+        },
+        {
+          "client_id": "1044442052507-rc9r310a8g41te8p170ooj43rf5tqfkc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiFgdpk1iJwFaGyalCjvTesLiejU44_Pg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1044442052507-rc9r310a8g41te8p170ooj43rf5tqfkc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

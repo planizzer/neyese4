@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:neyese4/data/models/pantry_item.dart';
 
 class ProductRepository {
   // Open Food Facts API'si için yeni bir Dio istemcisi
@@ -11,6 +10,10 @@ class ProductRepository {
       if (response.statusCode == 200 && response.data['status'] == 1) {
         // Ürün bulunduysa, verileri bir harita olarak döndür
         final product = response.data['product'];
+        // --- TEST İÇİN BU SATIRLARI EKLEYELİM ---
+        print('--- OPEN FOOD FACTS RAW DATA ---');
+        print(product);
+        // ------------------------------------
         return {
           'productName': product['product_name'] ?? '',
           'brand': product['brands'] ?? '',

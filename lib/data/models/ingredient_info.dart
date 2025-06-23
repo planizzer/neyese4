@@ -13,9 +13,20 @@ class IngredientInfo {
 
   // YENİ EKLENDİ: fromJson metodu
   factory IngredientInfo.fromJson(Map<String, dynamic> json) {
+    double parsedAmount = 0.0;
+    final dynamic amountValue = json['amount']; // Değeri önce 'dynamic' olarak alıyoruz.
+
+    if (amountValue is num) {
+      // Eğer gelen değer zaten bir sayı ise, doğrudan kullan.
+      parsedAmount = amountValue.toDouble();
+    } else if (amountValue is String) {
+      // Eğer gelen değer bir metin ise, sayıya çevirmeyi dene.
+      // Başarısız olursa (örn: "biraz" gibi bir metin gelirse), varsayılan olarak 0.0 kullan.
+      parsedAmount = double.tryParse(amountValue) ?? 0.0;
+    }
+
     return IngredientInfo(
-      // num olarak gelen veriyi double'a çeviriyoruz.
-      amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      amount: parsedAmount,
       unit: json['unit'] as String? ?? '',
       name: json['name'] as String? ?? 'Bilinmeyen Malzeme',
     );

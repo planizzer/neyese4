@@ -23,4 +23,20 @@ class SavedRecipe extends HiveObject {
     required this.title,
     required this.image,
   });
+// FIRESTORE İÇİN EKLENEN METOTLAR
+  factory SavedRecipe.fromJson(Map<String, dynamic> json) {
+    return SavedRecipe(
+      id: json['id'] as int,
+      title: json['title'] as String,
+      image: json['image'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'image': image,
+    };
+  }
 }

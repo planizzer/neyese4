@@ -2,9 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:neyese4/core/theme/app_text_styles.dart';
-import 'package:neyese4/features/recipe_finder/application/recipe_providers.dart';
 import 'package:neyese4/features/recipe_finder/application/search_query.dart';
 import 'package:neyese4/features/recipe_finder/presentation/screens/recipe_detail_screen.dart';
+import 'package:neyese4/data/providers.dart';
+
 
 class RecipeResultsScreen extends ConsumerWidget {
   final SearchQuery searchQuery;
@@ -13,9 +14,10 @@ class RecipeResultsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final String titleText = searchQuery.query ?? searchQuery.ingredients?.join(', ') ?? 'Sonuçlar';
     final resultsAsyncValue = ref.watch(searchResultsProvider(searchQuery));
     return Scaffold(
-      appBar: AppBar(title: Text('${searchQuery.ingredients?.join(', ')} için Tarifler')),
+      appBar: AppBar(title: Text('$titleText için Tarifler')),
       body: resultsAsyncValue.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Hata oluştu: $err')),

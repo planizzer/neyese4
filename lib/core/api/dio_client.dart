@@ -18,8 +18,8 @@ class DioClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: 'https://api.spoonacular.com',
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 3),
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 6),
         // Artık güvenli bir şekilde apiKey değişkenini kullanabiliriz.
         queryParameters: {
           'apiKey': apiKey,

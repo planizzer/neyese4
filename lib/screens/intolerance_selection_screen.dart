@@ -1,73 +1,73 @@
+// lib/screens/intolerance_selection_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:neyese4/core/theme/app_text_styles.dart';
 import 'package:neyese4/data/models/user_preferences.dart';
 import 'package:neyese4/data/providers.dart';
-import 'package:neyese4/features/profile/application/profile_providers.dart';
 
 class IntoleranceSelectionScreen extends ConsumerWidget {
   const IntoleranceSelectionScreen({super.key});
 
-  // Spoonacular API'nin desteklediği bazı yaygın hassasiyetler.
-  final List<String> _intolerances = const [
-    'Dairy',
-    'Egg',
-    'Gluten',
-    'Grain',
-    'Peanut',
-    'Seafood',
-    'Sesame',
-    'Shellfish',
-    'Soy',
-    'Sulfite',
-    'Tree Nut',
-    'Wheat',
-  ];
+  // YENİ YAPI: Anahtar (İngilizce API değeri) ve Değer (Türkçe UI metni)
+  static const Map<String, String> _intolerancesMap = {
+    'Dairy': 'Süt Ürünleri',
+    'Egg': 'Yumurta',
+    'Gluten': 'Gluten',
+    'Grain': 'Tahıl',
+    'Peanut': 'Yer Fıstığı',
+    'Seafood': 'Deniz Mahsulleri',
+    'Sesame': 'Susam',
+    'Shellfish': 'Kabuklu Deniz Ürünleri',
+    'Soy': 'Soya',
+    'Sulfite': 'Sülfit',
+    'Tree Nut': 'Ağaç Fıstığı',
+    'Wheat': 'Buğday',
+  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Kullanıcının mevcut tercihlerini dinliyoruz.
     final currentPrefs = ref.watch(userPreferencesProvider);
-    // Kayıtlı hassasiyetler listesini alıyoruz. Eğer boşsa, boş bir liste oluşturuyoruz.
+    // Kayıtlı olanlar hala İngilizce anahtarlar
     final selectedIntolerances = currentPrefs.intolerances ?? [];
+
+    // Ekranda göstermek için Türkçe değerleri ve İngilizce anahtarları listeye çeviriyoruz
+    final intoleranceKeys = _intolerancesMap.keys.toList();
+    final intoleranceValues = _intolerancesMap.values.toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Alerji ve Hassasiyetler'),
       ),
       body: ListView.builder(
-        itemCount: _intolerances.length,
+        itemCount: intoleranceValues.length,
         itemBuilder: (context, index) {
-          final intolerance = _intolerances[index];
-          // O anki hassasiyetin, kullanıcının seçtiği listede olup olmadığını kontrol ediyoruz.
-          final isSelected = selectedIntolerances.contains(intolerance);
+          final turkishName = intoleranceValues[index];
+          final englishKey = intoleranceKeys[index];
+          // Seçili olup olmadığını İngilizce anahtara göre kontrol ediyoruz
+          final isSelected = selectedIntolerances.contains(englishKey);
 
           return CheckboxListTile(
-            title: Text(intolerance, style: AppTextStyles.body),
+            title: Text(turkishName, style: AppTextStyles.body),
             value: isSelected,
             onChanged: (bool? value) {
               if (value != null) {
-                // Mevcut seçili listeyi düzenlenebilir bir kopyaya çeviriyoruz.
                 final updatedList = List<String>.from(selectedIntolerances);
 
                 if (value) {
-                  // Eğer kutu işaretlendiyse, hassasiyeti listeye ekliyoruz.
-                  updatedList.add(intolerance);
+                  // Seçildiğinde listeye İngilizce anahtarı ekle
+                  updatedList.add(englishKey);
                 } else {
-                  // Eğer işaret kaldırıldıysa, hassasiyeti listeden çıkarıyoruz.
-                  updatedList.remove(intolerance);
+                  // Seçim kaldırıldığında listeden İngilizce anahtarı çıkar
+                  updatedList.remove(englishKey);
                 }
 
-                // Veritabanı repository'sine erişiyoruz.
                 final repository = ref.read(userPreferencesRepositoryProvider);
-
-                // Mevcut tercihlerin bir kopyasını oluşturup sadece hassasiyetler listesini güncelliyoruz.
                 final updatedPrefs = UserPreferences(
                   diet: currentPrefs.diet,
                   intolerances: updatedList,
+                  equipment: currentPrefs.equipment,
                 );
-
-                // Güncellenmiş tercihleri veritabanına kaydediyoruz.
                 repository.savePreferences(updatedPrefs);
               }
             },

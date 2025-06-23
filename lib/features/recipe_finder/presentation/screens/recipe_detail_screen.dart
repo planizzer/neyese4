@@ -7,7 +7,6 @@ import 'package:neyese4/core/theme/app_colors.dart';
 import 'package:neyese4/core/theme/app_text_styles.dart';
 import 'package:neyese4/data/models/saved_recipe.dart';
 import 'package:neyese4/data/providers.dart';
-import 'package:neyese4/features/recipe_finder/application/recipe_providers.dart';
 import 'package:neyese4/features/recipe_finder/presentation/screens/cooking_mode_screen.dart';
 import 'package:neyese4/features/recipe_finder/presentation/widgets/chef_tips_card.dart';
 import 'package:neyese4/features/recipe_finder/presentation/widgets/ingredients_card.dart';
@@ -15,6 +14,8 @@ import 'package:neyese4/features/recipe_finder/presentation/widgets/nutrition_ca
 import 'package:neyese4/features/recipe_finder/presentation/widgets/preparation_steps_card.dart';
 import 'package:neyese4/features/recipe_finder/presentation/widgets/recipe_title_and_meta_card.dart';
 import 'package:neyese4/features/recipe_finder/presentation/widgets/utensils_card.dart';
+import 'package:neyese4/core/widgets/chef_loading_indicator.dart';
+
 
 class RecipeDetailScreen extends ConsumerWidget {
   final int recipeId;
@@ -25,9 +26,7 @@ class RecipeDetailScreen extends ConsumerWidget {
     final recipeAsyncValue = ref.watch(fullRecipeProvider(recipeId));
 
     return recipeAsyncValue.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () => Scaffold(body: Center(child: ChefLoadingIndicator())),
       error: (err, stack) => Scaffold(
         appBar: AppBar(title: const Text('Hata')),
         body: Center(
@@ -61,21 +60,53 @@ class RecipeDetailScreen extends ConsumerWidget {
                         ? 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(content.imageUrl)}'
                         : content.imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => const Icon(Icons.error),
+                    // YENİ EKLENEN BÖLÜM:
+                    errorBuilder: (context, error, stackTrace) {
+                      // Hata durumunda gösterilecek yedek widget
+                      return Container(
+                        color: Colors.grey.shade200,
+                        child: const Icon(
+                          Icons.image_not_supported_outlined,
+                          color: Colors.grey,
+                          size: 64,
+                        ),
+                      );
+                    },
                   ),
                 ),
                 actions: [
-                  IconButton(
-                    icon: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border_outlined,
-                        color: isSaved ? AppColors.primaryAction : null),
-                    onPressed: () {
-                      final repository = ref.read(savedRecipeRepositoryProvider);
-                      if (isSaved) {
-                        repository.deleteRecipe(recipeId);
-                      } else {
-                        repository.saveRecipe(
-                            SavedRecipe(id: recipeId, title: content.title, image: content.imageUrl));
-                      }
+                  // isRecipeSavedProvider'ın sonucunu anlık dinlemek için bir Consumer kullanıyoruz.
+                  Consumer(
+                    builder: (context, ref, child) {
+                      // Artık bir Future olduğu için sonucunu "isSavedAsync" olarak alıyoruz.
+                      final isSavedAsync = ref.watch(isRecipeSavedProvider(recipeId));
+
+                      // Future'ın durumuna göre (yükleniyor, hata, veri) farklı widget'lar gösteriyoruz.
+                      return isSavedAsync.when(
+                        // Veri yüklenirken küçük bir dönme animasyonu göster
+                        loading: () => const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                        ),
+                        // Hata durumunda bir hata ikonu göster
+                        error: (err, stack) => const IconButton(icon: Icon(Icons.error_outline, color: Colors.red), onPressed: null),
+                        // Veri geldiğinde duruma göre doğru ikonu göster
+                        data: (isSaved) => IconButton(
+                          icon: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border_outlined, color: isSaved ? AppColors.primaryAction : null),
+                          onPressed: () async { // <-- async ekle
+                            final repository = ref.read(firestoreRepositoryProvider);
+                            if (isSaved) {
+                              await repository.deleteRecipe(recipeId); // await ekle
+                            } else {
+                              await repository.saveRecipe( // await ekle
+                                SavedRecipe(id: recipeId, title: content.title, image: content.imageUrl),
+                              );
+                            }
+                            // İŞTE SİHİRLİ SATIR: Provider'ı tetikleyerek arayüzü güncellemeye zorla.
+                            ref.invalidate(isRecipeSavedProvider(recipeId));
+                          },
+                        ),
+                      );
                     },
                   ),
                 ],
@@ -108,14 +139,21 @@ class RecipeDetailScreen extends ConsumerWidget {
             child: ElevatedButton.icon(
               icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => CookingModeScreen(
-                      recipeTitle: content.title,
-                      steps: content.preparationSteps,
+                if (content.preparationSteps.isNotEmpty) { // Bu kontrolü eklemek iyi bir pratik
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => CookingModeScreen(
+                        recipeTitle: content.title,
+                        steps: content.preparationSteps,
+                        mainImageUrl: content.imageUrl, // <-- EKLENECEK TEK SATIR BU
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Bu tarif için hazırlık adımları bulunamadı.')),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accent,

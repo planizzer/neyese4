@@ -1,48 +1,68 @@
 // lib/features/recipe_finder/presentation/screens/cooking_mode_screen.dart
 
+import 'package:audioplayers/audioplayers.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // YENİ: Riverpod importu
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:neyese4/core/theme/app_colors.dart';
 import 'package:neyese4/core/theme/app_text_styles.dart';
 import 'package:neyese4/data/models/preparation_step.dart';
-import 'package:neyese4/features/profile/application/xp_provider.dart'; // YENİ: XP Provider importu
+import 'package:neyese4/data/providers.dart';
 import 'package:timer_count_down/timer_controller.dart';
 import 'package:timer_count_down/timer_count_down.dart';
 
-// GÜNCELLENDİ: StatefulWidget -> ConsumerStatefulWidget
 class CookingModeScreen extends ConsumerStatefulWidget {
   final String recipeTitle;
   final List<PreparationStep> steps;
+  final String mainImageUrl;
 
   const CookingModeScreen({
     super.key,
     required this.recipeTitle,
     required this.steps,
+    required this.mainImageUrl,
   });
 
   @override
-  // GÜNCELLENDİ: State -> ConsumerState
   ConsumerState<CookingModeScreen> createState() => _CookingModeScreenState();
 }
 
-// GÜNCELLENDİ: State -> ConsumerState
 class _CookingModeScreenState extends ConsumerState<CookingModeScreen> {
   int _currentStepIndex = 0;
   final CountdownController _countdownController = CountdownController(autoStart: false);
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  // Zamanlayıcının süresini tutacak olan state değişkeni
+  late int _currentDurationInSeconds;
+
+  @override
+  void initState() {
+    super.initState();
+    // Sayfa ilk açıldığında, ilk adımın süresini state'e ata
+    _currentDurationInSeconds = widget.steps.first.durationInSeconds ?? 0;
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
 
   void _goToNextStep() {
     if (_currentStepIndex < widget.steps.length - 1) {
-      // YENİ: Her adım geçildiğinde 10 XP kazan
       ref.read(userXpProvider.notifier).state += 10;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('+10 XP Kazanıldı! 🎉'), duration: Duration(seconds: 1)),
-      );
-
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('+10 XP Kazanıldı! 🎉'), duration: Duration(seconds: 1)),
+        );
+      }
       setState(() {
         _currentStepIndex++;
-        _countdownController.restart();
-        _countdownController.pause();
+        // Bir sonraki adıma geçince süreyi state üzerinden güncelle
+        _currentDurationInSeconds = widget.steps[_currentStepIndex].durationInSeconds ?? 0;
       });
+      _countdownController.restart();
+      _countdownController.pause();
     }
   }
 
@@ -50,9 +70,51 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen> {
     if (_currentStepIndex > 0) {
       setState(() {
         _currentStepIndex--;
-        _countdownController.restart();
-        _countdownController.pause();
+        // Önceki adıma geçince süreyi state üzerinden güncelle
+        _currentDurationInSeconds = widget.steps[_currentStepIndex].durationInSeconds ?? 0;
       });
+      _countdownController.restart();
+      _countdownController.pause();
+    }
+  }
+
+  Future<void> _showSetTimerDialog() async {
+    final minutesController = TextEditingController();
+    final secondsController = TextEditingController();
+
+    final resultInSeconds = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Zamanlayıcıyı Ayarla'),
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Expanded(child: TextField(controller: minutesController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Dakika'))),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 8.0), child: Text(':')),
+            Expanded(child: TextField(controller: secondsController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Saniye'))),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () {
+              final minutes = int.tryParse(minutesController.text) ?? 0;
+              final seconds = int.tryParse(secondsController.text) ?? 0;
+              Navigator.of(context).pop(minutes * 60 + seconds);
+            },
+            child: const Text('Başlat'),
+          ),
+        ],
+      ),
+    );
+
+    if (resultInSeconds != null && resultInSeconds > 0) {
+      setState(() {
+        // Kullanıcının girdiği süreyi state'e ata
+        _currentDurationInSeconds = resultInSeconds;
+      });
+      // Zamanlayıcıyı yeni süreyle yeniden başlat
+      _countdownController.restart();
     }
   }
 
@@ -62,40 +124,81 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${_currentStepIndex + 1}. Adım / ${widget.steps.length}'),
+        title: Column(
+          children: [
+            Text(widget.recipeTitle, style: AppTextStyles.body.copyWith(fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(
+              'Adım ${_currentStepIndex + 1}/${widget.steps.length}',
+              style: AppTextStyles.caption.copyWith(color: AppColors.neutralGrey, fontSize: 12),
+            ),
+          ],
+        ),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      // ... body kısmı aynı ...
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             AspectRatio(
               aspectRatio: 16 / 9,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(
-                  child: Icon(Icons.videocam_outlined, color: AppColors.neutralGrey, size: 48),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                  imageUrl: currentStep.imageUrl ?? widget.mainImageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(color: AppColors.primaryBackground),
+                  errorWidget: (context, url, error) => Container(
+                    color: AppColors.primaryBackground,
+                    child: const Center(
+                        child: Icon(Icons.restaurant_menu_outlined,
+                            color: AppColors.neutralGrey, size: 48)),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            if (currentStep.durationInSeconds != null)
-              _buildTimerWidget(currentStep.durationInSeconds!),
+            const SizedBox(height: 16),
+
+            GestureDetector(
+              onTap: _showSetTimerDialog,
+              child: _buildTimerWidget(),
+            ),
+
+            if (currentStep.stepIngredients.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Bu Adımın Malzemeleri:", style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8.0),
+                    Wrap(
+                      spacing: 8.0,
+                      runSpacing: 4.0,
+                      children: currentStep.stepIngredients
+                          .map((ingredient) => Chip(
+                        label: Text(ingredient),
+                        backgroundColor: AppColors.primaryBackground,
+                        labelStyle: const TextStyle(color: AppColors.primaryText),
+                        side: BorderSide(color: Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      ))
+                          .toList(),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 16.0),
+                  padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
                     currentStep.description,
-                    style: AppTextStyles.body.copyWith(fontSize: 20, height: 1.6),
+                    style: AppTextStyles.body.copyWith(fontSize: 20, height: 1.5),
                   ),
                 ),
               ),
@@ -104,7 +207,7 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen> {
         ),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -120,12 +223,13 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen> {
             ElevatedButton.icon(
               onPressed: () {
                 if (_currentStepIndex == widget.steps.length - 1) {
-                  // YENİ: Tarifi bitirince 50 XP bonus kazan
                   ref.read(userXpProvider.notifier).state += 50;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Tarif Tamamlandı! +50 XP Bonus! 🏆'), duration: Duration(seconds: 2)),
-                  );
-                  Navigator.of(context).pop();
+                  if(mounted){
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Tarif Tamamlandı! +50 XP Bonus! 🏆'), duration: Duration(seconds: 2)),
+                    );
+                    Navigator.of(context).pop();
+                  }
                 } else {
                   _goToNextStep();
                 }
@@ -141,8 +245,7 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen> {
     );
   }
 
-  // _buildTimerWidget metodu aynı
-  Widget _buildTimerWidget(int seconds) {
+  Widget _buildTimerWidget() {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -153,16 +256,19 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen> {
           children: [
             Countdown(
               controller: _countdownController,
-              seconds: seconds,
+              seconds: _currentDurationInSeconds,
               build: (_, double time) => Text(
                 '${(time / 60).floor().toString().padLeft(2, '0')}:${(time % 60).floor().toString().padLeft(2, '0')}',
                 style: AppTextStyles.h1.copyWith(fontFamily: 'monospace'),
               ),
               interval: const Duration(milliseconds: 100),
               onFinished: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Süre doldu!')),
-                );
+                _audioPlayer.play(AssetSource('sounds/alarm.mp3'));
+                if(mounted){
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Süre doldu!')),
+                  );
+                }
               },
             ),
             Row(

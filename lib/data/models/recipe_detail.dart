@@ -10,10 +10,11 @@ class RecipeDetail with _$RecipeDetail {
     required int id,
     required String title,
     required String image,
-    required int readyInMinutes, // Hazırlanma süresi
-    required List<Ingredient> extendedIngredients, // Malzeme listesi
-    required String instructions, // Hazırlanış talimatları (HTML olarak gelebilir)
-    String? summary, // Tarif özeti (HTML olarak gelebilir)
+    required int readyInMinutes,
+    required int servings, // <-- YENİ EKLENEN SATIR
+    required List<Ingredient> extendedIngredients,
+    required String instructions,
+    String? summary,
   }) = _RecipeDetail;
 
   factory RecipeDetail.fromJson(Map<String, dynamic> json) =>
